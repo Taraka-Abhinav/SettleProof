@@ -13,6 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    'https://settleproof-260831.revanthsivakumar1.chatgpt.site',
+  ),
   title: 'SettleProof — AI Finance Controller',
   description:
     'An evidence-first settlement close agent that proves every match and admits every exception.',
@@ -20,16 +23,28 @@ export const metadata: Metadata = {
     icon: '/favicon.svg',
   },
   openGraph: {
+    url: 'https://settleproof-260831.revanthsivakumar1.chatgpt.site',
     title: 'SettleProof — Every rupee accounted for.',
     description:
       'An evidence-first AI finance controller with measured match accuracy and an honest exception list.',
     type: 'website',
+    images: [
+      {
+        url: 'https://settleproof-260831.revanthsivakumar1.chatgpt.site/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'SettleProof — Every rupee accounted for.',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'SettleProof — Every rupee accounted for.',
     description:
       'An evidence-first AI finance controller with measured match accuracy and an honest exception list.',
+    images: [
+      'https://settleproof-260831.revanthsivakumar1.chatgpt.site/og.png',
+    ],
   },
 };
 
