@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "batchId": "SP-2026-08-31",
+  "seed": 260831,
+  "syntheticOnly": true,
+  "formulas": {
+    "autoMatchPrecision": "correct auto-matches / all auto-matches",
+    "matchRecall": "correct auto-matches / all truly matchable targets",
+    "safeMatchRate": "correct auto-matches / all reconciliation targets",
+    "valueWeightedCoverage": "correctly auto-closed INR / total target INR",
+    "exceptionRecall": "correctly surfaced injected exceptions / all injected exceptions"
+  },
+  "result": {
+    "sourceRows": 217,
+    "targets": 84,
+    "correctAutoMatches": 78,
+    "autoMatches": 78,
+    "trulyMatchable": 78,
+    "unresolved": 6,
+    "autoMatchPrecision": 1,
+    "matchRecall": 1,
+    "safeMatchRate": 0.9285714285714286,
+    "valueWeightedCoverage": 0.8746510696596058,
+    "exceptionRecall": 1,
+    "falseAutoCloses": 0,
+    "falseExceptionCount": 0,
+    "exactMatches": 58,
+    "constraintMatches": 8,
+    "aiAssistedMatches": 12,
+    "durationMs": 18.02680000000001,
+    "rowsPerSecond": 12038
+  },
+  "seededRegression": {
+    "seeds": 25,
+    "rawRows": 5425,
+    "precisionMean": 1,
+    "coverageMean": 0.9285714285714282,
+    "valueCoverageMean": 0.8745277277710872,
+    "exceptionRecallMean": 1,
+    "falseAutoCloses": 0,
+    "rulesOnlyCoverage": 0.7857142857142858
+  }
+}

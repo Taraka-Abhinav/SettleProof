@@ -1,0 +1,30 @@
+{
+  "id": "CERT-SP-2026-08-31",
+  "status": "CLOSED_WITH_EXCEPTIONS",
+  "issuedAt": "2026-08-31T10:30:02+05:30",
+  "inputFingerprint": "fnv1a-03ef1030",
+  "policyVersion": "settlement-close/v1.3.0",
+  "agentMode": "replayable-ai-proposals + deterministic-verifier",
+  "invariants": [
+    {
+      "name": "Record conservation",
+      "passed": true,
+      "proof": "217/217 source rows explicitly classified (84 ERP, 91 gateway, 42 bank); 84/84 targets reached a terminal state."
+    },
+    {
+      "name": "Settlement conservation",
+      "passed": true,
+      "proof": "9/9 posted settlements satisfy Σ credits − Σ debits = bank amount."
+    },
+    {
+      "name": "Bank conservation",
+      "passed": true,
+      "proof": "9/9 posted settlements map to one unique UTR credit."
+    },
+    {
+      "name": "Ledger conservation",
+      "passed": true,
+      "proof": "9/9 required journals balance to the paise; duplicate journal IDs: 0."
+    }
+  ]
+}

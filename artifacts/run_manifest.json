@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "batchId": "SP-2026-08-31",
+  "seed": 260831,
+  "generatedAt": "2026-08-31T10:30:00+05:30",
+  "runtime": "v24.14.0",
+  "policyVersion": "settlement-close/v1.3.0",
+  "agentMode": "replayable-ai-proposals + deterministic-verifier",
+  "inputSha256": "7e073e0c4954865d8c139dd92037437a4ad6765aafdc1ac8076f1d51c4da333c",
+  "engineSha256": "e0da044a2c911e8b143e85114ed8d24eabffe35e80d9634cb5e55a90078dc9bb",
+  "artifacts": [
+    "metrics.json",
+    "benchmark.json",
+    "exceptions.csv",
+    "matches.jsonl",
+    "close_certificate.json",
+    "synthetic_batch.json",
+    "ground_truth.json",
+    "dispositions.jsonl"
+  ]
+}

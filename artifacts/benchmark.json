@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "seededRegression": {
+    "seeds": 25,
+    "rawRows": 5425,
+    "precisionMean": 1,
+    "coverageMean": 0.9285714285714282,
+    "valueCoverageMean": 0.8745277277710872,
+    "exceptionRecallMean": 1,
+    "falseAutoCloses": 0,
+    "rulesOnlyCoverage": 0.7857142857142858
+  },
+  "stress": {
+    "rows": 50127,
+    "batches": 231,
+    "durationMs": 1038.74,
+    "rowsPerSecond": 48257,
+    "falseAutoCloses": 0
+  },
+  "ablation": {
+    "rulesOnlyCoverage": 0.7857142857142858,
+    "verifiedAgentCoverage": 0.9285714285714282,
+    "incrementalCoverage": 0.14285714285714235
+  }
+}
