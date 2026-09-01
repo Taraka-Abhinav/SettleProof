@@ -48,7 +48,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000` and use **Replay 217-row close**.
+Open `http://localhost:3000`. Use **Replay 217-row close** for the scored benchmark, or **Use your data** to run the same verifier on local files.
 
 To reproduce every score and artifact:
 
@@ -64,11 +64,34 @@ Or run the complete check:
 npm run verify
 ```
 
+## Use your own raw data
+
+The dashboard now includes a real browser-local ingestion loop. Files are parsed and reconciled in the browser; they are not uploaded or persisted.
+
+1. Click **Use your data**.
+2. Select three CSV/JSON exports, import one JSON pack, or choose **Load example raw files**.
+3. Review the detected field map, source SHA-256 hashes, row counts, control totals, and validation findings.
+4. Set the close cutoff and optional opening bank balance.
+5. Run the verified close and export its input-bound proof packet.
+
+The example-file path serializes the synthetic batch into three raw CSVs and sends all 217 rows through the exact same parser as user files. It does not jump back to the seed.
+
+| Source | Minimum detected fields |
+| --- | --- |
+| ERP ledger | order ID, booked date, amount; receipt/customer/expected settlement optional |
+| Gateway recon | type, created date, settlement ID, credit, debit; order ID or narration required |
+| Bank statement | posted date, credit/debit direction, amount; UTR and narration optional |
+
+IDs can be generated from source line numbers, ERP settlement IDs are optional, and bank settlement kind can be derived from credit/UTR evidence. Amounts are converted with string arithmetic to integer paise. Formula-like cells, ambiguous columns, invalid dates, non-INR rows, duplicate source IDs, malformed amounts, and files over the row/size limits block the run instead of disappearing.
+
+Custom files do not contain evaluator-only truth labels, so their dashboard deliberately shows operational close rate, value reconciled, row disposition, balanced journals, and verifier invariants—never synthetic precision, recall, or false-close claims. Measured accuracy remains isolated in **Benchmark & audit**.
+
 ## What the demo proves
 
 The interface is a working close command center, not a landing page or chatbot.
 
 - **Close overview** — count- and value-weighted metrics, cash bridge, proof invariants, and residual exposure.
+- **Bring-your-own-data wizard** — real CSV/JSON parsing, mappings, validation, control totals, hashes, close policy, and local-only processing.
 - **Evidence ledger** — every safe match links ERP, gateway, settlement, bank, policy gates, and the posted journal.
 - **Exception inbox** — every abstention includes the exact blocker, missing evidence, exposure, and safest next action.
 - **Benchmark & audit** — seeded regression, rules-vs-agent ablation, formulas, throughput, limitations, and downloadable proof files.
@@ -97,9 +120,11 @@ The verifier checks:
 1. integer-paise amount equality within the INR-scoped batch;
 2. unique assignment and no illegal row reuse;
 3. explicit date-window policy;
-4. `Σ gateway credits − Σ gateway debits = settlement bank amount`;
-5. one unique bank credit carrying the expected UTR;
-6. balanced debits and credits before an idempotent journal is posted.
+4. one-to-one candidate assignment independent of source row order;
+5. every payment component in a settlement reconciled before any group journal;
+6. `Σ gateway credits − Σ gateway debits = settlement bank amount`;
+7. one non-empty, consistent settlement UTR and one matching bank credit;
+8. balanced debits and credits before an idempotent journal is posted.
 
 The four close-certificate invariants are record conservation, settlement conservation, bank conservation, and ledger conservation. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -162,13 +187,19 @@ The test suite verifies:
 - journal balance and stable idempotency keys across reruns;
 - instruction-like source text cannot bypass the verifier;
 - every close-certificate invariant passes for the safely posted subset.
+- quoted CSV fields, BOM/CRLF handling, exact paise conversion, dates, currencies, duplicate IDs, and spreadsheet-formula neutralization;
+- the 217-row example files traverse the real importer and retain the benchmark outcome;
+- imported runs never inherit synthetic accuracy claims;
+- missing/conflicting UTRs and orphan gateway rows cannot authorize partial settlement journals;
+- input manifests bind SHA-256 file hashes, mappings, counts, policy, and canonical data;
+- imported target and journal IDs remain stable when source rows are reordered.
 
 ## Honest limits
 
 - Results are synthetic and do not claim production performance.
 - The included AI narration proposals are replayed for reproducibility; no paid model call is required for the demo.
 - The 25 seeds vary amounts and unrelated bank movements while preserving the scenario mix and proposal replay; this is a verifier regression, not model-generalization evidence or a substitute for merchant data.
-- Gateway credentials, webhook signatures, maker/checker identity, and live journal writes are explicit production adapter boundaries.
+- Direct API credentials, webhook signatures, durable storage, maker/checker identity, and live journal writes are explicit production adapter boundaries; CSV/JSON ingestion is implemented.
 - A reviewed exception remains blocked until new evidence arrives and the verifier is rerun.
 
 ## Buildathon handoff

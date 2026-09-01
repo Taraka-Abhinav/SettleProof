@@ -32,12 +32,17 @@ import {
   ShieldCheck,
   Sparkles,
   TriangleAlert,
+  UploadCloud,
   WalletCards,
 } from 'lucide-react';
 import benchmarkArtifact from '@/artifacts/benchmark.json';
 import manifestArtifact from '@/artifacts/run_manifest.json';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  ImportCloseDialog,
+  type ImportedCloseSession,
+} from '@/components/import-close-dialog';
 import {
   Dialog,
   DialogContent,
@@ -67,6 +72,7 @@ import {
   formatInr,
   formatPercent,
   runClose,
+  runImportedClose,
   runSeededRegression,
   type CloseRun,
   type MatchMethod,
@@ -76,12 +82,14 @@ import {
 type View = 'overview' | 'evidence' | 'exceptions' | 'benchmark';
 type Phase = 'complete' | 'running';
 
-const pipelineSteps = [
-  'Profiling 217 source rows',
+const pipelineSteps = (sourceRows: number) => [
+  `Profiling ${sourceRows.toLocaleString('en-IN')} source rows`,
   'Generating typed candidates',
   'Verifying money invariants',
   'Posting balanced journals',
 ];
+
+const benchmarkRun = runClose();
 
 const navItems: Array<{ value: View; label: string; icon: LucideIcon }> = [
   { value: 'overview', label: 'Close command', icon: CircleDollarSign },
@@ -215,11 +223,17 @@ function CloseOverview({
   run,
   phase,
   stage,
+  cutoffDate,
 }: {
   run: CloseRun;
   phase: Phase;
   stage: number;
+  cutoffDate: string;
 }) {
+  const isBenchmark = run.metrics.evaluationMode === 'ground-truth';
+  const passedInvariants = run.certificate.invariants.filter(
+    (item) => item.passed,
+  ).length;
   const matchedValue = run.decisions
     .filter((item) => item.status === 'matched')
     .reduce((sum, item) => sum + item.amountPaise, 0);
@@ -234,8 +248,13 @@ function CloseOverview({
           <div className="proof-grid absolute inset-0 opacity-35" />
           <div aria-busy={phase === 'running'} aria-live="polite" className="relative">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border border-[#63b979]/25 bg-[#9bffb6]/10 text-[#baffc9]">
-                <CheckCircle2 /> Closed with exceptions
+              <Badge className={`border ${run.certificate.status === 'BLOCKED' ? 'border-[#e5a241]/30 bg-[#e5a241]/10 text-[#ffd18e]' : 'border-[#63b979]/25 bg-[#9bffb6]/10 text-[#baffc9]'}`}>
+                {run.certificate.status === 'BLOCKED' ? <LockKeyhole /> : <CheckCircle2 />}
+                {run.certificate.status === 'BLOCKED'
+                  ? 'Posting blocked'
+                  : run.certificate.status === 'CLOSED'
+                    ? 'Closed cleanly'
+                    : 'Closed with exceptions'}
               </Badge>
               <span className="text-xs text-white/60">CERT-{run.batch.id}</span>
             </div>
@@ -247,16 +266,16 @@ function CloseOverview({
                     <p className="text-xs uppercase tracking-[0.15em] text-white/60">
                       Verified close running
                     </p>
-                    <p className="mt-1 text-xl font-semibold">{pipelineSteps[stage]}</p>
+                    <p className="mt-1 text-xl font-semibold">{pipelineSteps(run.metrics.sourceRows)[stage]}</p>
                   </div>
                 </div>
                 <Progress
                   aria-label="Close progress"
                   className="mt-7 [&_[data-slot=progress-indicator]]:bg-[#b7ffca] [&_[data-slot=progress-track]]:h-1.5 [&_[data-slot=progress-track]]:bg-white/10"
-                  value={((stage + 1) / pipelineSteps.length) * 100}
+                  value={((stage + 1) / pipelineSteps(run.metrics.sourceRows).length) * 100}
                 />
                 <p className="mt-3 text-xs tabular-nums text-white/60">
-                  Stage {stage + 1} of {pipelineSteps.length} · writes remain locked until proof passes
+                  Stage {stage + 1} of {pipelineSteps(run.metrics.sourceRows).length} · writes remain locked until proof passes
                 </p>
               </div>
             ) : (
@@ -270,14 +289,16 @@ function CloseOverview({
                       {formatInr(matchedValue, true)}
                     </p>
                     <p className="mt-3 text-sm text-white/55">
-                      {run.metrics.correctAutoMatches} of {run.metrics.targets} targets auto-closed
+                      {run.metrics.autoMatches} of {run.metrics.targets} targets verified for close
                     </p>
                   </div>
                   <div className="sm:text-right">
                     <p className="text-3xl font-semibold tracking-[-0.04em] text-[#b7ffca] tabular-nums">
                       {formatPercent(run.metrics.safeMatchRate)}
                     </p>
-                    <p className="mt-1 text-xs text-white/60">safe match rate</p>
+                    <p className="mt-1 text-xs text-white/60">
+                      {isBenchmark ? 'safe match rate' : 'operational close rate'}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-7 overflow-hidden rounded-full bg-white/10">
@@ -290,7 +311,7 @@ function CloseOverview({
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[11px] text-white/60">
-                  <span>{run.metrics.correctAutoMatches} verified</span>
+                  <span>{run.metrics.autoMatches} verified</span>
                   <span>{run.metrics.unresolved} abstained</span>
                 </div>
               </>
@@ -301,7 +322,11 @@ function CloseOverview({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.15em] text-white/60">Verifier result</p>
-              <p className="mt-1 font-medium">All safe-write gates passed</p>
+              <p className="mt-1 font-medium">
+                {passedInvariants === run.certificate.invariants.length
+                  ? 'All safe-write gates passed'
+                  : `${passedInvariants} of ${run.certificate.invariants.length} safe-write gates passed`}
+              </p>
             </div>
             <span className="grid size-10 place-items-center rounded-xl border border-[#b7ffca]/15 bg-[#b7ffca]/10 text-[#b7ffca]">
               <Fingerprint className="size-5" />
@@ -310,11 +335,13 @@ function CloseOverview({
           <div className="mt-6 space-y-3">
             {run.certificate.invariants.map((invariant) => (
               <div className="flex items-center gap-3" key={invariant.name}>
-                <span className="grid size-5 place-items-center rounded-full bg-[#8df5a8]/15 text-[#aef8bf]">
-                  <Check className="size-3" />
+                <span className={`grid size-5 place-items-center rounded-full ${invariant.passed ? 'bg-[#8df5a8]/15 text-[#aef8bf]' : 'bg-[#e5a241]/15 text-[#f4bd69]'}`}>
+                  {invariant.passed ? <Check className="size-3" /> : <AlertCircle className="size-3" />}
                 </span>
                 <span className="text-sm text-white/75">{invariant.name}</span>
-                <span className="ml-auto text-[10px] uppercase tracking-wider text-[#aef8bf]">Pass</span>
+                <span className={`ml-auto text-[10px] uppercase tracking-wider ${invariant.passed ? 'text-[#aef8bf]' : 'text-[#f4bd69]'}`}>
+                  {invariant.passed ? 'Pass' : 'Hold'}
+                </span>
               </div>
             ))}
           </div>
@@ -329,42 +356,23 @@ function CloseOverview({
         </aside>
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard
-          detail={`${run.metrics.correctAutoMatches} correct / ${run.metrics.autoMatches} auto-matches`}
-          icon={BadgeCheck}
-          label="Auto-match precision"
-          tone="green"
-          value={formatPercent(run.metrics.autoMatchPrecision, 0)}
-        />
-        <MetricCard
-          detail="Correct matches / all targets"
-          icon={Gauge}
-          label="Safe match rate"
-          tone="green"
-          value={formatPercent(run.metrics.safeMatchRate)}
-        />
-        <MetricCard
-          detail="₹-weighted, hard rows included"
-          icon={WalletCards}
-          label="Value coverage"
-          value={formatPercent(run.metrics.valueWeightedCoverage)}
-        />
-        <MetricCard
-          detail="6 / 6 injected breaks found"
-          icon={TriangleAlert}
-          label="Exception recall"
-          tone="amber"
-          value={formatPercent(run.metrics.exceptionRecall, 0)}
-        />
-        <MetricCard
-          detail="Financially unsafe writes"
-          icon={ShieldCheck}
-          label="False auto-closes"
-          tone="green"
-          value={String(run.metrics.falseAutoCloses)}
-        />
-      </div>
+      {isBenchmark ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard detail={`${run.metrics.correctAutoMatches} correct / ${run.metrics.autoMatches} auto-matches`} icon={BadgeCheck} label="Auto-match precision" tone="green" value={formatPercent(run.metrics.autoMatchPrecision, 0)} />
+          <MetricCard detail="Correct matches / all targets" icon={Gauge} label="Safe match rate" tone="green" value={formatPercent(run.metrics.safeMatchRate)} />
+          <MetricCard detail="₹-weighted, hard rows included" icon={WalletCards} label="Value coverage" value={formatPercent(run.metrics.valueWeightedCoverage)} />
+          <MetricCard detail={`${run.metrics.unresolved} / ${run.metrics.unresolved} injected breaks found`} icon={TriangleAlert} label="Exception recall" tone="amber" value={formatPercent(run.metrics.exceptionRecall, 0)} />
+          <MetricCard detail="Financially unsafe writes" icon={ShieldCheck} label="False auto-closes" tone="green" value={String(run.metrics.falseAutoCloses)} />
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard detail={`${run.metrics.autoMatches} verified / ${run.metrics.targets} targets`} icon={Gauge} label="Operational close rate" tone="green" value={formatPercent(run.metrics.safeMatchRate)} />
+          <MetricCard detail="Verified target value / total target value" icon={WalletCards} label="Value reconciled" value={formatPercent(run.metrics.valueWeightedCoverage)} />
+          <MetricCard detail="Every accepted row has a recorded disposition" icon={Layers3} label="Rows classified" tone={run.dispositions.some((item) => item.disposition === 'unclassified') ? 'amber' : 'green'} value={`${run.dispositions.filter((item) => item.disposition !== 'unclassified').length}/${run.metrics.sourceRows}`} />
+          <MetricCard detail="Only complete settlements can post" icon={ReceiptText} label="Balanced journals" tone="green" value={String(run.journals.filter((journal) => journal.balanced).length)} />
+          <MetricCard detail="Accuracy remains benchmark-only" icon={ShieldCheck} label="Verifier invariants" tone={passedInvariants === run.certificate.invariants.length ? 'green' : 'amber'} value={`${passedInvariants}/${run.certificate.invariants.length}`} />
+        </div>
+      )}
 
       <SourceFlow run={run} />
 
@@ -375,7 +383,7 @@ function CloseOverview({
               <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#5e6c64]">Cash position</p>
               <h2 className="mt-1 text-lg font-semibold tracking-[-0.025em]">Bank balance, explained</h2>
             </div>
-            <Badge variant="outline" className="border-[#d5ddd6] text-[#65736b]">INR · as of 31 Aug</Badge>
+            <Badge variant="outline" className="border-[#d5ddd6] text-[#65736b]">INR · as of {cutoffDate}</Badge>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
             <div>
@@ -423,7 +431,9 @@ function CloseOverview({
             </div>
           </div>
           <p className="mt-5 text-sm leading-6 text-[#4d5d54]">
-            It is not an unexplained shortfall. The gap is split between a processed settlement not yet received and a duplicate UTR credit that cannot be posted twice. The remaining four cases are record-link failures, not bank cash.
+            {isBenchmark
+              ? 'It is not an unexplained shortfall. The gap is split between a processed settlement not yet received and a duplicate UTR credit that cannot be posted twice. The remaining four cases are record-link failures, not bank cash.'
+              : `${run.journals.length} settlement journals cleared every posting gate. ${run.metrics.unresolved} targets worth ${formatInr(run.cash.unresolvedExposurePaise)} remain held back with an evidence request and next action.`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {exceptionIds.map((id) => (
@@ -438,7 +448,9 @@ function CloseOverview({
         </section>
       </div>
       <p className="text-[11px] leading-5 text-[#5e6c64]">
-        Synthetic evaluation only. Precision and coverage are scored against evaluator-only truth labels; they are not production claims.
+        {isBenchmark
+          ? 'Synthetic evaluation only. Precision and coverage are scored against evaluator-only truth labels; they are not production claims.'
+          : 'Uploaded batch · no ground-truth labels. Operational coverage is shown here; measured precision and exception recall remain in Benchmark & audit.'}
       </p>
     </div>
   );
@@ -462,6 +474,12 @@ function EvidenceView({
         item.orderId.toLowerCase().includes(query.toLowerCase()) ||
         item.ledgerRowId.toLowerCase().includes(query.toLowerCase())),
   );
+  const filterOptions: Array<[typeof filter, string]> = [
+    ['all', `All ${run.metrics.autoMatches}`],
+    ['exact-rule', `Exact ${run.metrics.exactMatches}`],
+    ['constraint-rule', `Constraint ${run.metrics.constraintMatches}`],
+    ['verified-ai', `Verified AI ${run.metrics.aiAssistedMatches}`],
+  ];
 
   return (
     <div className="space-y-5">
@@ -494,15 +512,9 @@ function EvidenceView({
       <section className="overflow-hidden rounded-xl border border-[#dce2db] bg-white">
         <div className="flex flex-col gap-3 border-b border-[#e1e6e0] p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                ['all', 'All 78'],
-                ['exact-rule', 'Exact 58'],
-                ['constraint-rule', 'Constraint 8'],
-                ['verified-ai', 'Verified AI 12'],
-              ] as const
-            ).map(([value, label]) => (
+            {filterOptions.map(([value, label]) => (
               <Button
+                aria-pressed={filter === value}
                 className={filter === value ? 'bg-[#17281f] text-white hover:bg-[#263b30]' : 'text-[#66746c]'}
                 key={value}
                 onClick={() => setFilter(value)}
@@ -603,7 +615,7 @@ function ExceptionsView({
             <p className="text-xs font-semibold uppercase tracking-[0.14em]">Honest exception list</p>
           </div>
           <h2 className="mt-3 text-xl font-semibold tracking-[-0.03em] text-[#3b2b17]">
-            Six cases the agent refused to guess.
+            {exceptions.length} {exceptions.length === 1 ? 'case' : 'cases'} the agent refused to guess.
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#7c684d]">
             Each case shows the exact failed gate, missing evidence, rupee exposure, and safest next action. Review does not silently convert an exception into a match.
@@ -616,7 +628,7 @@ function ExceptionsView({
           </div>
           <div className="min-w-28 border-l border-[#efd5b1] p-5">
             <p className="text-xs text-[#92704b]">Reviewed</p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-[#6f4310]">{reviewed.size} / 6</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums text-[#6f4310]">{reviewed.size} / {exceptions.length}</p>
           </div>
         </div>
       </section>
@@ -690,7 +702,8 @@ function ExceptionsView({
   );
 }
 
-function BenchmarkView({ run }: { run: CloseRun }) {
+function BenchmarkView() {
+  const run = benchmarkRun;
   const regression = runSeededRegression(25);
   const stress = benchmarkArtifact.stress;
   const ablation = benchmarkArtifact.ablation;
@@ -937,37 +950,77 @@ function DecisionDialog({
 }
 
 export default function Home() {
-  const [run, setRun] = useState<CloseRun>(() => runClose());
+  const [run, setRun] = useState<CloseRun>(benchmarkRun);
   const [view, setView] = useState<View>('overview');
   const [phase, setPhase] = useState<Phase>('complete');
   const [stage, setStage] = useState(3);
   const [selected, setSelected] = useState<ReconciliationDecision | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
+  const [importSession, setImportSession] = useState<ImportedCloseSession | null>(null);
+
+  const isImported = Boolean(importSession);
+  const cutoffDate = importSession?.manifest.cutoffDate ?? '2026-08-31';
+  const exceptionCount = run.decisions.filter(
+    (item) => item.status === 'exception',
+  ).length;
 
   const replay = async () => {
     if (phase === 'running') return;
     setView('overview');
     setPhase('running');
-    for (let index = 0; index < pipelineSteps.length; index += 1) {
+    for (let index = 0; index < pipelineSteps(run.metrics.sourceRows).length; index += 1) {
       setStage(index);
       await new Promise((resolve) => setTimeout(resolve, 420));
     }
-    setRun(runClose());
+    if (importSession) {
+      const nextRun = runImportedClose(
+        {
+          ledger: run.batch.ledger,
+          gateway: run.batch.gateway,
+          bank: run.batch.bank,
+        },
+        {
+          id: run.batch.id,
+          period: run.batch.period,
+          generatedAt: new Date().toISOString(),
+          cutoffDate: importSession.manifest.cutoffDate,
+          openingCashPaise: importSession.manifest.openingCashPaise,
+        },
+      );
+      setRun(nextRun);
+      setImportSession({ ...importSession, run: nextRun });
+    } else {
+      setRun(runClose());
+    }
     setPhase('complete');
+  };
+
+  const returnToBenchmark = () => {
+    setRun(runClose());
+    setImportSession(null);
+    setReviewed(new Set());
+    setSelected(null);
+    setView('overview');
+    setStage(3);
   };
 
   const exportPacket = () => {
     downloadText(
-      'settleproof-proof-packet.json',
+      `settleproof-${run.batch.id.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-proof-packet.json`,
       JSON.stringify(
         {
-          manifest: manifestArtifact,
+          mode: isImported ? 'browser-local-import' : 'synthetic-benchmark',
+          manifest: importSession?.manifest ?? manifestArtifact,
           inputs: {
             ledger: run.batch.ledger,
             gateway: run.batch.gateway,
             bank: run.batch.bank,
           },
           metrics: run.metrics,
+          evaluationDisclosure: isImported
+            ? 'No independent truth labels were supplied. Precision, recall, and false-close counts are intentionally unscored for this imported batch.'
+            : 'Scored against evaluator-only synthetic truth labels.',
           benchmark: benchmarkArtifact,
           certificate: run.certificate,
           decisions: run.decisions,
@@ -1000,8 +1053,8 @@ export default function Home() {
               <span className="text-[10px] uppercase tracking-wider text-white/60">Close window</span>
               <span className="size-1.5 rounded-full bg-[#86f4a4] shadow-[0_0_10px_#86f4a4]" />
             </div>
-            <p className="mt-1 text-sm font-medium">28–31 Aug 2026</p>
-            <p className="mt-0.5 text-[10px] text-white/60">Aurelia Commerce · INR</p>
+            <p className="mt-1 text-sm font-medium">Through {cutoffDate}</p>
+            <p className="mt-0.5 text-[10px] text-white/60">{isImported ? 'Imported local batch' : 'Aurelia Commerce'} · INR</p>
           </div>
           <nav aria-label="Workspace views" className="mt-5 space-y-1">
             {navItems.map(({ value, label, icon: Icon }) => (
@@ -1015,7 +1068,7 @@ export default function Home() {
                 <Icon className={view === value ? 'text-[#b7ffca]' : ''} />
                 {label}
                 {value === 'exceptions' && (
-                  <span className="ml-auto rounded-full bg-[#e8a64a]/15 px-1.5 py-0.5 text-[10px] text-[#f1bd72]">6</span>
+                  <span className="ml-auto rounded-full bg-[#e8a64a]/15 px-1.5 py-0.5 text-[10px] text-[#f1bd72]">{exceptionCount}</span>
                 )}
               </Button>
             ))}
@@ -1028,7 +1081,9 @@ export default function Home() {
               </div>
               <p className="mt-2 text-xs leading-5 text-white/65">The agent may propose a match. Only the verifier can post it.</p>
             </div>
-            <p className="px-1 text-[9px] uppercase tracking-[0.14em] text-white/55">Synthetic benchmark · v1.3.0</p>
+            <p className="px-1 text-[9px] uppercase tracking-[0.14em] text-white/55">
+              {isImported ? 'Browser-local import · v1.4.0' : 'Synthetic benchmark · v1.3.0'}
+            </p>
           </div>
         </aside>
 
@@ -1039,15 +1094,17 @@ export default function Home() {
                 <ShieldCheck className="size-5" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-[#6f7d75]">Aurelia Commerce</p>
+                <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-[#6f7d75]">{isImported ? 'Imported workspace' : 'Aurelia Commerce'}</p>
                 <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium">August settlement close</p>
-                  <span className="hidden items-center gap-1 text-[10px] text-[#5e8c6b] sm:flex"><span className="size-1.5 rounded-full bg-[#45a966]" /> Proof issued</span>
+                  <p className="truncate text-sm font-medium">{isImported ? `${run.batch.period} settlement close` : 'August settlement close'}</p>
+                  <span className="hidden items-center gap-1 text-[10px] text-[#5e8c6b] sm:flex"><span className="size-1.5 rounded-full bg-[#45a966]" /> {run.certificate.status === 'BLOCKED' ? 'Safe hold' : 'Proof issued'}</span>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="hidden border-[#ced7cf] bg-white text-[#68756d] md:inline-flex">Seed 260831</Badge>
+              <Badge variant="outline" className="hidden border-[#ced7cf] bg-white text-[#68756d] md:inline-flex">
+                {isImported ? <><LockKeyhole /> Local import</> : 'Seed 260831'}
+              </Badge>
               <Button onClick={exportPacket} size="sm" variant="outline" className="border-[#ced7cf] bg-white">
                 <Download /> <span className="hidden sm:inline">Export proof packet</span><span className="sm:hidden">Export</span>
               </Button>
@@ -1064,21 +1121,38 @@ export default function Home() {
                   Every rupee accounted for.
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68766e]">
-                  Three-way settlement reconciliation with measured accuracy, deterministic posting gates, and no hidden exceptions.
+                  {isImported
+                    ? 'Your files were normalized and reconciled locally. Operational coverage is shown without pretending unlabeled data has measured accuracy.'
+                    : 'Three-way settlement reconciliation with measured accuracy, deterministic posting gates, and no hidden exceptions.'}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="hidden text-right sm:block">
                   <p className="text-[10px] uppercase tracking-wider text-[#616e66]">Last close</p>
-                  <p className="mt-0.5 text-xs tabular-nums text-[#58675f]">31 Aug · 10:30 IST</p>
+                  <p className="mt-0.5 text-xs tabular-nums text-[#58675f]">{isImported ? cutoffDate : '31 Aug · 10:30 IST'}</p>
                 </div>
+                {isImported && (
+                  <Button onClick={returnToBenchmark} size="sm" variant="ghost">Benchmark</Button>
+                )}
+                <Button
+                  className="h-10 border-[#bac9bd] bg-white text-[#284237] hover:bg-[#f7faf7]"
+                  disabled={phase === 'running'}
+                  onClick={() => setImportOpen(true)}
+                  variant="outline"
+                >
+                  <UploadCloud /> {isImported ? 'Load another batch' : 'Use your data'}
+                </Button>
                 <Button
                   className="h-10 bg-[#16271f] px-4 text-[#c6ffd4] hover:bg-[#263a30]"
                   disabled={phase === 'running'}
                   onClick={replay}
                 >
                   {phase === 'running' ? <RefreshCw className="animate-spin" /> : <Play className="fill-current" />}
-                  {phase === 'running' ? 'Verifying…' : 'Replay 217-row close'}
+                  {phase === 'running'
+                    ? 'Verifying…'
+                    : isImported
+                      ? `Re-run ${run.metrics.sourceRows}-row close`
+                      : 'Replay 217-row close'}
                 </Button>
               </div>
             </div>
@@ -1089,10 +1163,10 @@ export default function Home() {
                   <TabsTrigger className="min-w-max px-3 text-xs" key={value} value={value}>{label}</TabsTrigger>
                 ))}
               </TabsList>
-              <TabsContent value="overview"><CloseOverview phase={phase} run={run} stage={stage} /></TabsContent>
+              <TabsContent value="overview"><CloseOverview cutoffDate={cutoffDate} phase={phase} run={run} stage={stage} /></TabsContent>
               <TabsContent value="evidence"><EvidenceView onSelect={setSelected} run={run} /></TabsContent>
               <TabsContent value="exceptions"><ExceptionsView onSelect={setSelected} reviewed={reviewed} run={run} /></TabsContent>
-              <TabsContent value="benchmark"><BenchmarkView run={run} /></TabsContent>
+              <TabsContent value="benchmark"><BenchmarkView /></TabsContent>
             </Tabs>
           </div>
         </section>
@@ -1106,6 +1180,19 @@ export default function Home() {
           setReviewed((current) => new Set(current).add(targetId));
         }}
         run={run}
+      />
+      <ImportCloseDialog
+        onComplete={(session) => {
+          setImportSession(session);
+          setRun(session.run);
+          setReviewed(new Set());
+          setSelected(null);
+          setView('overview');
+          setStage(3);
+        }}
+        onOpenChange={setImportOpen}
+        open={importOpen}
+        sampleRun={benchmarkRun}
       />
     </main>
   );

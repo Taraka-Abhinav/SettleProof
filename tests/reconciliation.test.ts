@@ -64,7 +64,7 @@ void test('all four close-certificate invariants pass for the safely posted subs
   assert.ok(run.certificate.invariants.every((invariant) => invariant.passed));
 });
 
-void test('one gateway row cannot auto-close two ERP targets', () => {
+void test('competing ERP targets quarantine one gateway row without order bias', () => {
   const batch = generateSyntheticBatch(DEMO_SEED);
   batch.ledger[1] = {
     ...batch.ledger[0],
@@ -74,8 +74,23 @@ void test('one gateway row cannot auto-close two ERP targets', () => {
   const reused = decisions.filter((decision) =>
     decision.gatewayRowIds.includes('gw_001'),
   );
-  assert.equal(reused.filter((decision) => decision.status === 'matched').length, 1);
+  assert.equal(reused.filter((decision) => decision.status === 'matched').length, 0);
+  assert.equal(decisions[0].reasonCode, 'ROW_ALREADY_ASSIGNED');
   assert.equal(decisions[1].reasonCode, 'ROW_ALREADY_ASSIGNED');
+
+  const reversed = reconcileBatch({
+    ...batch,
+    ledger: [...batch.ledger].reverse(),
+  });
+  const reversedClaims = reversed.filter((decision) =>
+    decision.gatewayRowIds.includes('gw_001'),
+  );
+  assert.equal(reversedClaims.length, 2);
+  assert.ok(
+    reversedClaims.every(
+      (decision) => decision.reasonCode === 'ROW_ALREADY_ASSIGNED',
+    ),
+  );
 });
 
 void test('editing narration invalidates the AI proposal replay', () => {

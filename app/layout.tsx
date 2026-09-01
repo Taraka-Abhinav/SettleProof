@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   ),
   title: 'SettleProof — AI Finance Controller',
   description:
-    'An evidence-first settlement close agent that proves every match and admits every exception.',
+    'Import raw finance exports locally, close verified settlements, and preserve every unresolved exception.',
   icons: {
     icon: '/favicon.svg',
   },
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     url: 'https://settleproof-260831.revanthsivakumar1.chatgpt.site',
     title: 'SettleProof — Every rupee accounted for.',
     description:
-      'An evidence-first AI finance controller with measured match accuracy and an honest exception list.',
+      'A browser-local AI finance controller with verified reconciliation, measured benchmark accuracy, and an honest exception list.',
     type: 'website',
     images: [
       {
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SettleProof — Every rupee accounted for.',
     description:
-      'An evidence-first AI finance controller with measured match accuracy and an honest exception list.',
+      'A browser-local AI finance controller with verified reconciliation, measured benchmark accuracy, and an honest exception list.',
     images: [
       'https://settleproof-260831.revanthsivakumar1.chatgpt.site/og.png',
     ],

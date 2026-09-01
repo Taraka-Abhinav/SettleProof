@@ -7,7 +7,7 @@
   "policyVersion": "settlement-close/v1.3.0",
   "agentMode": "replayable-ai-proposals + deterministic-verifier",
   "inputSha256": "7e073e0c4954865d8c139dd92037437a4ad6765aafdc1ac8076f1d51c4da333c",
-  "engineSha256": "e0da044a2c911e8b143e85114ed8d24eabffe35e80d9634cb5e55a90078dc9bb",
+  "engineSha256": "1a2f99317d099f86a953c1a865826bfb59144dd3f097bb0d1879623ed7975f61",
   "artifacts": [
     "metrics.json",
     "benchmark.json",

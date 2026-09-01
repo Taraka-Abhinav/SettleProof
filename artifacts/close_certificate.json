@@ -14,12 +14,12 @@
     {
       "name": "Settlement conservation",
       "passed": true,
-      "proof": "9/9 posted settlements satisfy Σ credits − Σ debits = bank amount."
+      "proof": "9/9 eligible settlements satisfy Σ credits − Σ debits = bank amount."
     },
     {
       "name": "Bank conservation",
       "passed": true,
-      "proof": "9/9 posted settlements map to one unique UTR credit."
+      "proof": "9/9 eligible settlements map to one unique UTR credit."
     },
     {
       "name": "Ledger conservation",

@@ -11,7 +11,7 @@
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
     "format": "oxfmt",
-    "test": "node --test tests/reconciliation.test.ts",
+    "test": "node --test tests/reconciliation.test.ts tests/importer.test.ts",
     "evaluate": "node scripts/evaluate.ts",
     "verify": "npm run lint && npm run test && npm run evaluate && npm run build"
   },

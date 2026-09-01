@@ -12,7 +12,7 @@ Replace bracketed personal links before submitting. The official form says the f
 
 ## Objectives / what it solves
 
-SettleProof closes the daily settlement reconciliation loop across an internal ERP ledger, Razorpay-style combined recon data, and a bank statement. It uses AI only to interpret noisy payment narrations, while a deterministic policy engine independently verifies unique assignment, integer-paise arithmetic, settlement netting, bank receipt, and balanced journals before any write is authorized. On the included 217-row synthetic batch, it safely auto-closes 78 of 84 targets (92.9% match rate) at 100% auto-match precision, surfaces all six injected exceptions, generates nine idempotent balanced journals, updates the cash position, and exports a machine-readable close certificate and complete exception list.
+SettleProof closes the daily settlement reconciliation loop across an internal ERP ledger, Razorpay-style combined recon data, and a bank statement. A browser-local ingestion wizard accepts three real CSV/JSON exports, auto-detects their schema, converts money to integer paise, fingerprints every input, validates every row, and sends the canonical batch through the same verifier used by the benchmark—without uploading merchant data. It uses AI only to interpret noisy payment narrations, while deterministic policy independently verifies global one-to-one assignment, cutoff dates, complete settlement groups, consistent UTRs, settlement netting, bank receipt, and balanced journals before any write is authorized. On the included 217-row synthetic batch, it safely auto-closes 78 of 84 targets (92.9% match rate) at 100% auto-match precision, surfaces all six injected exceptions, generates nine idempotent balanced journals, updates the cash position, and exports a machine-readable close certificate and complete exception list. Imported files are honestly reported with operational coverage only because they have no evaluator truth labels.
 
 ## GitHub URL
 
@@ -40,6 +40,10 @@ Script: [`PITCH.md`](PITCH.md)
 
 **6. Proving reruns are safe.** Each journal ID derives from batch and settlement IDs. Tests rerun the same batch, assert stable unique journal keys, and verify debits equal credits to the paise.
 
+**7. Making raw data usable without faking accuracy.** I added a real browser-local CSV/JSON pipeline with quoted-field parsing, alias-based mapping, SHA-256 manifests, row-level errors, exact paise conversion, policy configuration, and zero silent drops. Custom data produces operational metrics only; benchmark precision and recall never leak into an unlabeled upload.
+
+**8. Preventing partial settlement posting.** A single matched payment is not enough to journal a settlement. Every payment component must link exactly once, the UTR must be non-empty and consistent, one bank credit must prove the net amount, and no component exception may remain. Orphan rows block the certificate.
+
 ## Final checklist
 
 - [ ] Personal details, college, graduation year, in-person availability, and internship duration are correct.
@@ -49,6 +53,7 @@ Script: [`PITCH.md`](PITCH.md)
 - [ ] Hosted demo URL, if included, works in an incognito window.
 - [ ] Results in the video match `artifacts/metrics.json`.
 - [ ] The video shows one difficult verified match and one deliberate abstention.
+- [ ] The video shows the raw-file preflight and explicitly distinguishes imported operational metrics from benchmark accuracy.
 - [ ] The repository contains no API keys, credentials, private data, or placeholder submission links.
 - [ ] `npm ci && npm run verify` passes from a clean checkout.
 - [ ] Final confirmation is submitted only after every link is checked.

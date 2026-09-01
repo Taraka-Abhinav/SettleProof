@@ -13,8 +13,8 @@
   "stress": {
     "rows": 50127,
     "batches": 231,
-    "durationMs": 1038.74,
-    "rowsPerSecond": 48257,
+    "durationMs": 1286.75,
+    "rowsPerSecond": 38956,
     "falseAutoCloses": 0
   },
   "ablation": {

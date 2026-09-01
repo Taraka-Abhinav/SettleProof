@@ -12,6 +12,9 @@ export type ExceptionCode =
   | 'DUPLICATE_BANK_CREDIT'
   | 'DATE_OUT_OF_POLICY'
   | 'SETTLEMENT_MISMATCH'
+  | 'SETTLEMENT_UTR_MISSING'
+  | 'CONFLICTING_SETTLEMENT_UTR'
+  | 'SETTLEMENT_INCOMPLETE'
   | 'ROW_ALREADY_ASSIGNED';
 
 export interface LedgerRow {
@@ -112,6 +115,7 @@ export interface SettlementJournal {
 }
 
 export interface EvaluationMetrics {
+  evaluationMode: 'ground-truth' | 'operational';
   sourceRows: number;
   targets: number;
   correctAutoMatches: number;
@@ -150,7 +154,7 @@ export interface CloseInvariant {
 
 export interface CloseCertificate {
   id: string;
-  status: 'CLOSED_WITH_EXCEPTIONS';
+  status: 'CLOSED' | 'CLOSED_WITH_EXCEPTIONS' | 'BLOCKED';
   issuedAt: string;
   inputFingerprint: string;
   policyVersion: string;
@@ -182,6 +186,23 @@ export interface CloseRun {
   certificate: CloseCertificate;
   dispositions: SourceDisposition[];
 }
+
+export interface ClosePolicy {
+  cutoffDate: string;
+  openingCashPaise: number;
+  issuedAt: string;
+  policyVersion: string;
+  agentMode: string;
+  targetIdForRow?: (row: LedgerRow, index: number) => string;
+}
+
+const demoPolicy: ClosePolicy = {
+  cutoffDate: '2026-08-31',
+  openingCashPaise: 418_263_045,
+  issuedAt: '2026-08-31T10:30:02+05:30',
+  policyVersion: 'settlement-close/v1.3.0',
+  agentMode: 'replayable-ai-proposals + deterministic-verifier',
+};
 
 const exceptionCopy: Record<
   ExceptionCode,
@@ -226,6 +247,21 @@ const exceptionCopy: Record<
     title: 'ERP and gateway settlement IDs disagree',
     missing: 'A corrected settlement assignment or approved reclassification.',
     next: 'Inspect the gateway settlement allocation before posting.',
+  },
+  SETTLEMENT_UTR_MISSING: {
+    title: 'Settlement UTR is missing',
+    missing: 'A gateway settlement UTR that can be proven against the bank.',
+    next: 'Refresh the gateway settlement export before attempting to post.',
+  },
+  CONFLICTING_SETTLEMENT_UTR: {
+    title: 'Settlement rows disagree on UTR',
+    missing: 'One consistent settlement UTR across every gateway component.',
+    next: 'Quarantine the settlement and resolve the gateway export conflict.',
+  },
+  SETTLEMENT_INCOMPLETE: {
+    title: 'Settlement is not fully reconciled',
+    missing: 'A unique ERP target for every payment component in the settlement.',
+    next: 'Resolve the orphan or exceptional component before posting the settlement journal.',
   },
   ROW_ALREADY_ASSIGNED: {
     title: 'Gateway row is already assigned',
@@ -525,12 +561,50 @@ function exceptionDecision(
 
 export function reconcileBatch(
   input: Pick<SyntheticBatch, 'ledger' | 'gateway' | 'bank'>,
+  options: Partial<Pick<ClosePolicy, 'cutoffDate' | 'targetIdForRow'>> = {},
 ): ReconciliationDecision[] {
-  const claimedGatewayIds = new Set<string>();
-  return input.ledger.map((ledgerRow, index) => {
-    const targetId = `target_${String(index + 1).padStart(3, '0')}`;
+  const cutoffDate = options.cutoffDate ?? demoPolicy.cutoffDate;
+  const paymentRows = input.gateway.filter((row) => row.type === 'payment');
+  const claimedCandidateByLedger = new Map<string, string>();
+  input.ledger.forEach((ledgerRow) => {
     const normalizedOrder = normalizeReference(ledgerRow.orderId);
-    const paymentRows = input.gateway.filter((row) => row.type === 'payment');
+    const exactCandidates = paymentRows.filter(
+      (row) => normalizeReference(row.orderId) === normalizedOrder,
+    );
+    if (
+      exactCandidates.length === 1 &&
+      exactCandidates[0].creditPaise === ledgerRow.amountPaise
+    ) {
+      claimedCandidateByLedger.set(ledgerRow.id, exactCandidates[0].id);
+      return;
+    }
+    if (exactCandidates.length !== 0) return;
+    const narrationCandidates = paymentRows.filter((row) => {
+      const proposal = getReplayedNarrationProposal(row.description);
+      return (
+        row.creditPaise === ledgerRow.amountPaise &&
+        dayDistance(row.createdAt, ledgerRow.bookedAt) <= 2 &&
+        normalizeReference(proposal?.extractedOrderId ?? null) ===
+          normalizedOrder
+      );
+    });
+    if (narrationCandidates.length === 1) {
+      claimedCandidateByLedger.set(ledgerRow.id, narrationCandidates[0].id);
+    }
+  });
+  const candidateClaimCounts = new Map<string, number>();
+  claimedCandidateByLedger.forEach((gatewayId) => {
+    candidateClaimCounts.set(
+      gatewayId,
+      (candidateClaimCounts.get(gatewayId) ?? 0) + 1,
+    );
+  });
+
+  return input.ledger.map((ledgerRow, index) => {
+    const targetId = options.targetIdForRow
+      ? options.targetIdForRow(ledgerRow, index)
+      : `target_${String(index + 1).padStart(3, '0')}`;
+    const normalizedOrder = normalizeReference(ledgerRow.orderId);
     const exactCandidates = paymentRows.filter(
       (row) => normalizeReference(row.orderId) === normalizedOrder,
     );
@@ -639,7 +713,10 @@ export function reconcileBatch(
       );
     }
 
-    if (gatewayMatch.settlementId !== ledgerRow.settlementId) {
+    if (
+      ledgerRow.settlementId &&
+      gatewayMatch.settlementId !== ledgerRow.settlementId
+    ) {
       return exceptionDecision(
         ledgerRow,
         targetId,
@@ -654,31 +731,70 @@ export function reconcileBatch(
       );
     }
 
-    if (claimedGatewayIds.has(gatewayMatch.id)) {
+    if ((candidateClaimCounts.get(gatewayMatch.id) ?? 0) > 1) {
       return exceptionDecision(
         ledgerRow,
         targetId,
         'ROW_ALREADY_ASSIGNED',
         [gatewayMatch],
         [],
-        `${gatewayMatch.id} already belongs to an earlier ERP target; row reuse is prohibited.`,
+        `${gatewayMatch.id} is claimed by multiple ERP targets; all competing claims were quarantined.`,
         [
           { label: 'Reference unique', passed: true, detail: gatewayMatch.id },
-          { label: 'No row reuse', passed: false, detail: 'Already assigned' },
+          { label: 'No row reuse', passed: false, detail: `${candidateClaimCounts.get(gatewayMatch.id)} competing targets` },
         ],
       );
     }
-    claimedGatewayIds.add(gatewayMatch.id);
+
+    const settlementRows = input.gateway.filter(
+      (row) => row.settlementId === gatewayMatch.settlementId,
+    );
+    const settlementUtrs = [
+      ...new Set(
+        settlementRows
+          .map((row) => normalizeReference(row.settlementUtr))
+          .filter(Boolean),
+      ),
+    ];
+    if (!normalizeReference(gatewayMatch.settlementUtr)) {
+      return exceptionDecision(
+        ledgerRow,
+        targetId,
+        'SETTLEMENT_UTR_MISSING',
+        [gatewayMatch],
+        [],
+        `${gatewayMatch.settlementId} has no settlement UTR, so bank receipt cannot be proven.`,
+        [
+          { label: 'Gateway link proven', passed: true, detail: gatewayMatch.id },
+          { label: 'Settlement UTR present', passed: false, detail: 'Missing UTR' },
+        ],
+      );
+    }
+    if (settlementUtrs.length > 1) {
+      return exceptionDecision(
+        ledgerRow,
+        targetId,
+        'CONFLICTING_SETTLEMENT_UTR',
+        [gatewayMatch],
+        [],
+        `${gatewayMatch.settlementId} contains ${settlementUtrs.length} different settlement UTR values.`,
+        [
+          { label: 'Gateway link proven', passed: true, detail: gatewayMatch.id },
+          { label: 'Settlement UTR consistent', passed: false, detail: `${settlementUtrs.length} UTR values` },
+        ],
+      );
+    }
 
     const expectedNet = settlementNet(input.gateway, gatewayMatch.settlementId);
     const bankCandidates = input.bank.filter(
       (row) =>
         row.kind === 'settlement' &&
         row.direction === 'credit' &&
-        row.postedAt <= '2026-08-31' &&
+        row.postedAt <= cutoffDate &&
         row.postedAt >= gatewayMatch.createdAt &&
         dayDistance(row.postedAt, gatewayMatch.createdAt) <= 5 &&
         row.amountPaise === expectedNet &&
+        Boolean(normalizeReference(row.utr)) &&
         normalizeReference(row.utr) ===
           normalizeReference(gatewayMatch?.settlementUtr ?? null),
     );
@@ -787,6 +903,7 @@ export function evaluateDecisions(
   const safeDuration = Math.max(durationMs, 0.1);
 
   return {
+    evaluationMode: 'ground-truth',
     sourceRows,
     targets: batch.truth.length,
     correctAutoMatches,
@@ -812,12 +929,112 @@ export function evaluateDecisions(
   };
 }
 
+function applySettlementPostingGate(
+  batch: SyntheticBatch,
+  decisions: ReconciliationDecision[],
+) {
+  const matchedGatewayIds = new Set(
+    decisions
+      .filter((item) => item.status === 'matched')
+      .flatMap((item) => item.gatewayRowIds),
+  );
+  const incompleteSettlements = new Map<
+    string,
+    { matchedPayments: number; totalPayments: number }
+  >();
+  const settlementIds = [
+    ...new Set(
+      decisions
+        .filter((item) => item.status === 'matched')
+        .map((item) => item.settlementId),
+    ),
+  ];
+  settlementIds.forEach((groupId) => {
+    const paymentRows = batch.gateway.filter(
+      (row) => row.type === 'payment' && row.settlementId === groupId,
+    );
+    const matchedPayments = paymentRows.filter((row) =>
+      matchedGatewayIds.has(row.id),
+    ).length;
+    const hasException = decisions.some(
+      (item) => item.settlementId === groupId && item.status === 'exception',
+    );
+    const utrs = new Set(
+      batch.gateway
+        .filter((row) => row.settlementId === groupId)
+        .map((row) => normalizeReference(row.settlementUtr))
+        .filter(Boolean),
+    );
+    if (
+      paymentRows.length === 0 ||
+      matchedPayments !== paymentRows.length ||
+      hasException ||
+      utrs.size !== 1
+    ) {
+      incompleteSettlements.set(groupId, {
+        matchedPayments,
+        totalPayments: paymentRows.length,
+      });
+    }
+  });
+
+  return decisions.map((decision) => {
+    const incomplete = incompleteSettlements.get(decision.settlementId);
+    if (decision.status !== 'matched' || !incomplete) return decision;
+    const copy = exceptionCopy.SETTLEMENT_INCOMPLETE;
+    return {
+      ...decision,
+      status: 'exception' as const,
+      method: null,
+      confidence: 0,
+      reasonCode: 'SETTLEMENT_INCOMPLETE' as const,
+      title: copy.title,
+      explanation: `${decision.settlementId} has ${incomplete.matchedPayments}/${incomplete.totalPayments} payment components safely linked; the entire settlement remains write-blocked.`,
+      missingEvidence: copy.missing,
+      nextAction: copy.next,
+      gates: [
+        ...decision.gates,
+        {
+          label: 'Settlement complete',
+          passed: false,
+          detail: `${incomplete.matchedPayments}/${incomplete.totalPayments} payment components`,
+        },
+      ],
+    };
+  });
+}
+
 function createJournals(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
 ): SettlementJournal[] {
   const matched = decisions.filter((item) => item.status === 'matched');
-  const settlementIds = [...new Set(matched.map((item) => item.settlementId))];
+  const matchedGatewayIds = new Set(
+    matched.flatMap((item) => item.gatewayRowIds),
+  );
+  const settlementIds = [...new Set(matched.map((item) => item.settlementId))]
+    .filter((groupId) => {
+      const paymentIds = batch.gateway
+        .filter(
+          (row) => row.settlementId === groupId && row.type === 'payment',
+        )
+        .map((row) => row.id);
+      const hasException = decisions.some(
+        (item) => item.settlementId === groupId && item.status === 'exception',
+      );
+      const utrs = new Set(
+        batch.gateway
+          .filter((row) => row.settlementId === groupId)
+          .map((row) => normalizeReference(row.settlementUtr))
+          .filter(Boolean),
+      );
+      return (
+        paymentIds.length > 0 &&
+        paymentIds.every((id) => matchedGatewayIds.has(id)) &&
+        !hasException &&
+        utrs.size === 1
+      );
+    });
   return settlementIds.map((groupId) => {
     const reconRows = batch.gateway.filter((row) => row.settlementId === groupId);
     const gross = reconRows.reduce((sum, row) => sum + row.creditPaise, 0);
@@ -848,21 +1065,27 @@ function createJournals(
 function buildCashPosition(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
+  journals: SettlementJournal[],
+  openingPaise: number,
 ): CashPosition {
-  const openingPaise = 418_263_045;
   const postedSettlementIds = new Set(
+    journals.map((journal) => journal.settlementId),
+  );
+  const postedBankIds = new Set(
     decisions
-      .filter((item) => item.status === 'matched')
-      .map((item) => item.settlementId),
+      .filter(
+        (item) =>
+          item.status === 'matched' &&
+          postedSettlementIds.has(item.settlementId),
+      )
+      .flatMap((item) => item.bankRowIds),
   );
   const verifiedSettlementsPaise = batch.bank
     .filter(
       (row) =>
+        postedBankIds.has(row.id) &&
         row.kind === 'settlement' &&
-        row.direction === 'credit' &&
-        [...postedSettlementIds].some((groupId) =>
-          row.narration.includes(groupId),
-        ),
+        row.direction === 'credit',
     )
     .reduce((sum, row) => sum + row.amountPaise, 0);
   const bankNet = batch.bank.reduce(
@@ -871,10 +1094,26 @@ function buildCashPosition(
     0,
   );
   const otherBankMovementPaise = bankNet - verifiedSettlementsPaise;
-  const missingSettlement = settlementId(10);
-  const duplicateSettlement = settlementId(11);
-  const confirmedInTransitPaise = settlementNet(batch.gateway, missingSettlement);
-  const underReviewPaise = settlementNet(batch.gateway, duplicateSettlement);
+  const exceptionSettlementTotal = (reasonCode: ExceptionCode) =>
+    [
+      ...new Set(
+        decisions
+          .filter(
+            (item) =>
+              item.status === 'exception' &&
+              item.reasonCode === reasonCode &&
+              item.settlementId,
+          )
+          .map((item) => item.settlementId),
+      ),
+    ].reduce(
+      (sum, groupId) => sum + settlementNet(batch.gateway, groupId),
+      0,
+    );
+  const confirmedInTransitPaise = exceptionSettlementTotal(
+    'BANK_CREDIT_MISSING',
+  );
+  const underReviewPaise = exceptionSettlementTotal('DUPLICATE_BANK_CREDIT');
   const unresolvedExposurePaise = decisions
     .filter((item) => item.status === 'exception')
     .reduce((sum, item) => sum + item.amountPaise, 0);
@@ -907,6 +1146,12 @@ function buildSourceDispositions(
     decisions
       .filter((decision) => decision.status === 'exception')
       .map((decision) => decision.settlementId),
+  );
+  const exceptionUtrs = new Set(
+    batch.gateway
+      .filter((row) => exceptionSettlementIds.has(row.settlementId))
+      .map((row) => normalizeReference(row.settlementUtr))
+      .filter(Boolean),
   );
 
   const ledger: SourceDisposition[] = batch.ledger.map((row) => {
@@ -942,9 +1187,11 @@ function buildSourceDispositions(
   });
   const bank: SourceDisposition[] = batch.bank.map((row) => {
     const decision = decisionByBank.get(row.id);
-    const supportsException = [...exceptionSettlementIds].some((groupId) =>
-      row.narration.includes(groupId),
-    );
+    const supportsException =
+      exceptionUtrs.has(normalizeReference(row.utr)) ||
+      [...exceptionSettlementIds].some((groupId) =>
+        row.narration.includes(groupId),
+      );
     let disposition: SourceDisposition['disposition'] = 'unclassified';
     if (decision) {
       disposition =
@@ -969,6 +1216,7 @@ function buildCertificate(
   decisions: ReconciliationDecision[],
   journals: SettlementJournal[],
   dispositions: SourceDisposition[],
+  policy: ClosePolicy,
 ): CloseCertificate {
   const matchedSettlementIds = [
     ...new Set(
@@ -977,17 +1225,36 @@ function buildCertificate(
         .map((item) => item.settlementId),
     ),
   ];
-  const settlementProofsPass = matchedSettlementIds.length > 0 && matchedSettlementIds.every((groupId) => {
+  const settlementProofsPass = matchedSettlementIds.every((groupId) => {
     const expected = settlementNet(batch.gateway, groupId);
-    const bankRows = batch.bank.filter(
-      (row) =>
-        row.kind === 'settlement' &&
-        row.direction === 'credit' &&
-        row.postedAt <= '2026-08-31' &&
-        row.amountPaise === expected &&
-        row.narration.includes(groupId),
+    const groupDecisions = decisions.filter(
+      (item) => item.status === 'matched' && item.settlementId === groupId,
     );
-    return bankRows.length === 1;
+    const bankIds = new Set(groupDecisions.flatMap((item) => item.bankRowIds));
+    const gatewayIds = new Set(
+      groupDecisions.flatMap((item) => item.gatewayRowIds),
+    );
+    const paymentRows = batch.gateway.filter(
+      (row) => row.type === 'payment' && row.settlementId === groupId,
+    );
+    const gatewayUtrs = new Set(
+      batch.gateway
+        .filter((row) => row.settlementId === groupId)
+        .map((row) => normalizeReference(row.settlementUtr))
+        .filter(Boolean),
+    );
+    const bankRows = batch.bank.filter((row) => bankIds.has(row.id));
+    return (
+      paymentRows.length > 0 &&
+      paymentRows.every((row) => gatewayIds.has(row.id)) &&
+      gatewayUtrs.size === 1 &&
+      bankRows.length === 1 &&
+      bankRows[0].kind === 'settlement' &&
+      bankRows[0].direction === 'credit' &&
+      bankRows[0].postedAt <= policy.cutoffDate &&
+      bankRows[0].amountPaise === expected &&
+      normalizeReference(bankRows[0].utr) === [...gatewayUtrs][0]
+    );
   });
   const classifiedLedgerRows = dispositions.filter(
     (item) => item.source === 'ledger' && item.disposition !== 'unclassified',
@@ -1005,16 +1272,45 @@ function buildCertificate(
   const journalIds = new Set(journals.map((journal) => journal.id));
   const ledgerProofsPass =
     journals.length === matchedSettlementIds.length &&
-    journals.length > 0 &&
     journalIds.size === journals.length &&
     journals.every((journal) => journal.balanced) &&
     matchedSettlementIds.every((groupId) =>
       journals.some((journal) => journal.settlementId === groupId),
     );
+  const invariants: CloseInvariant[] = [
+    {
+      name: 'Record conservation',
+      passed:
+        accountedRows === sourceRows &&
+        dispositions.length === sourceRows &&
+        decisions.length === batch.ledger.length,
+      proof: `${accountedRows}/${sourceRows} source rows explicitly classified (${classifiedLedgerRows} ERP, ${classifiedGatewayRows} gateway, ${classifiedBankRows} bank); ${decisions.length}/${batch.ledger.length} targets reached a terminal state.`,
+    },
+    {
+      name: 'Settlement conservation',
+      passed: settlementProofsPass,
+      proof: `${journals.length}/${matchedSettlementIds.length} eligible settlements satisfy Σ credits − Σ debits = bank amount.`,
+    },
+    {
+      name: 'Bank conservation',
+      passed: settlementProofsPass,
+      proof: `${journals.length}/${matchedSettlementIds.length} eligible settlements map to one unique UTR credit.`,
+    },
+    {
+      name: 'Ledger conservation',
+      passed: ledgerProofsPass,
+      proof: `${journals.length}/${matchedSettlementIds.length} required journals balance to the paise; duplicate journal IDs: ${journals.length - journalIds.size}.`,
+    },
+  ];
+  const allInvariantsPass = invariants.every((item) => item.passed);
   return {
     id: `CERT-${batch.id}`,
-    status: 'CLOSED_WITH_EXCEPTIONS',
-    issuedAt: '2026-08-31T10:30:02+05:30',
+    status: allInvariantsPass
+      ? decisions.some((item) => item.status === 'exception')
+        ? 'CLOSED_WITH_EXCEPTIONS'
+        : 'CLOSED'
+      : 'BLOCKED',
+    issuedAt: policy.issuedAt,
     inputFingerprint: fingerprint(
       JSON.stringify({
         ledger: batch.ledger,
@@ -1022,40 +1318,19 @@ function buildCertificate(
         bank: batch.bank,
       }),
     ),
-    policyVersion: 'settlement-close/v1.3.0',
-    agentMode: 'replayable-ai-proposals + deterministic-verifier',
-    invariants: [
-      {
-        name: 'Record conservation',
-        passed:
-          accountedRows === sourceRows &&
-          dispositions.length === sourceRows &&
-          decisions.length === batch.ledger.length,
-        proof: `${accountedRows}/${sourceRows} source rows explicitly classified (${classifiedLedgerRows} ERP, ${classifiedGatewayRows} gateway, ${classifiedBankRows} bank); ${decisions.length}/${batch.ledger.length} targets reached a terminal state.`,
-      },
-      {
-        name: 'Settlement conservation',
-        passed: settlementProofsPass,
-        proof: `${matchedSettlementIds.length}/${matchedSettlementIds.length} posted settlements satisfy Σ credits − Σ debits = bank amount.`,
-      },
-      {
-        name: 'Bank conservation',
-        passed: settlementProofsPass,
-        proof: `${matchedSettlementIds.length}/${matchedSettlementIds.length} posted settlements map to one unique UTR credit.`,
-      },
-      {
-        name: 'Ledger conservation',
-        passed: ledgerProofsPass,
-        proof: `${journals.length}/${matchedSettlementIds.length} required journals balance to the paise; duplicate journal IDs: ${journals.length - journalIds.size}.`,
-      },
-    ],
+    policyVersion: policy.policyVersion,
+    agentMode: policy.agentMode,
+    invariants,
   };
 }
 
 export function runClose(seed = DEMO_SEED): CloseRun {
   const batch = generateSyntheticBatch(seed);
   const start = performance.now();
-  const decisions = reconcileBatch(batch);
+  const decisions = applySettlementPostingGate(
+    batch,
+    reconcileBatch(batch, demoPolicy),
+  );
   const durationMs = performance.now() - start;
   const metrics = evaluateDecisions(batch, decisions, durationMs);
   const journals = createJournals(batch, decisions);
@@ -1065,8 +1340,124 @@ export function runClose(seed = DEMO_SEED): CloseRun {
     decisions,
     journals,
     metrics,
-    cash: buildCashPosition(batch, decisions),
-    certificate: buildCertificate(batch, decisions, journals, dispositions),
+    cash: buildCashPosition(
+      batch,
+      decisions,
+      journals,
+      demoPolicy.openingCashPaise,
+    ),
+    certificate: buildCertificate(
+      batch,
+      decisions,
+      journals,
+      dispositions,
+      demoPolicy,
+    ),
+    dispositions,
+  };
+}
+
+export interface ImportedCloseOptions {
+  id: string;
+  period: string;
+  generatedAt: string;
+  cutoffDate: string;
+  openingCashPaise?: number;
+}
+
+function buildOperationalMetrics(
+  batch: SyntheticBatch,
+  decisions: ReconciliationDecision[],
+  durationMs: number,
+): EvaluationMetrics {
+  const autoMatches = decisions.filter((item) => item.status === 'matched').length;
+  const matchedValuePaise = decisions
+    .filter((item) => item.status === 'matched')
+    .reduce((sum, item) => sum + item.amountPaise, 0);
+  const totalValuePaise = batch.ledger.reduce(
+    (sum, item) => sum + item.amountPaise,
+    0,
+  );
+  const sourceRows =
+    batch.ledger.length + batch.gateway.length + batch.bank.length;
+  const safeDuration = Math.max(durationMs, 0.1);
+  return {
+    evaluationMode: 'operational',
+    sourceRows,
+    targets: batch.ledger.length,
+    correctAutoMatches: autoMatches,
+    autoMatches,
+    trulyMatchable: 0,
+    unresolved: decisions.length - autoMatches,
+    autoMatchPrecision: 0,
+    matchRecall: 0,
+    safeMatchRate: batch.ledger.length ? autoMatches / batch.ledger.length : 0,
+    valueWeightedCoverage: totalValuePaise
+      ? matchedValuePaise / totalValuePaise
+      : 0,
+    exceptionRecall: 0,
+    falseAutoCloses: 0,
+    falseExceptionCount: 0,
+    exactMatches: decisions.filter((item) => item.method === 'exact-rule').length,
+    constraintMatches: decisions.filter(
+      (item) => item.method === 'constraint-rule',
+    ).length,
+    aiAssistedMatches: decisions.filter(
+      (item) => item.method === 'verified-ai',
+    ).length,
+    durationMs: safeDuration,
+    rowsPerSecond: Math.round((sourceRows / safeDuration) * 1000),
+  };
+}
+
+export function runImportedClose(
+  input: Pick<SyntheticBatch, 'ledger' | 'gateway' | 'bank'>,
+  options: ImportedCloseOptions,
+): CloseRun {
+  const policy: ClosePolicy = {
+    cutoffDate: options.cutoffDate,
+    openingCashPaise: options.openingCashPaise ?? 0,
+    issuedAt: options.generatedAt,
+    policyVersion: 'settlement-close/v1.4.0',
+    agentMode: 'browser-local import + deterministic verifier',
+    targetIdForRow: (row) => `target:${row.id}`,
+  };
+  const batch: SyntheticBatch = {
+    id: options.id,
+    seed: 0,
+    period: options.period,
+    generatedAt: options.generatedAt,
+    ledger: input.ledger,
+    gateway: input.gateway,
+    bank: input.bank,
+    truth: [],
+  };
+  const start = performance.now();
+  const decisions = applySettlementPostingGate(
+    batch,
+    reconcileBatch(batch, policy),
+  );
+  const durationMs = performance.now() - start;
+  const journals = createJournals(batch, decisions);
+  const dispositions = buildSourceDispositions(batch, decisions);
+  return {
+    batch,
+    decisions,
+    journals,
+    metrics: buildOperationalMetrics(batch, decisions, durationMs),
+    cash: buildCashPosition(
+      batch,
+      decisions,
+      journals,
+      policy.openingCashPaise,
+    ),
+    certificate: buildCertificate(
+      batch,
+      decisions,
+      journals,
+      dispositions,
+      policy,
+    ),
     dispositions,
   };
 }
@@ -1103,8 +1494,13 @@ export function runSeededRegression(count = 25) {
 }
 
 export function exceptionsToCsv(decisions: ReconciliationDecision[]) {
-  const quote = (value: string | number) =>
-    `"${String(value).replaceAll('"', '""')}"`;
+  const quote = (value: string | number) => {
+    const raw = String(value);
+    const neutralized = /^[=+@]/.test(raw) || /^-(?!\d)/.test(raw)
+      ? `'${raw}`
+      : raw;
+    return `"${neutralized.replaceAll('"', '""')}"`;
+  };
   const header = [
     'target_id',
     'order_id',
