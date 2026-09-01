@@ -288,9 +288,27 @@ function CloseOverview({
   const matchedValue = run.decisions
     .filter((item) => item.status === 'matched')
     .reduce((sum, item) => sum + item.amountPaise, 0);
-  const exceptionIds = run.decisions
-    .filter((item) => item.status === 'exception')
-    .map((item) => item.targetId.replace('target_', 'T-'));
+  const nonRefundSourceExceptions = Math.max(
+    0,
+    run.metrics.sourceExceptions - run.metrics.refundExceptions,
+  );
+  const exceptionBreakdown = [
+    run.metrics.unresolved > 0
+      ? `${run.metrics.unresolved} payment target${run.metrics.unresolved === 1 ? '' : 's'}`
+      : null,
+    run.metrics.refundExceptions > 0
+      ? `${run.metrics.refundExceptions} refund check${run.metrics.refundExceptions === 1 ? '' : 's'}`
+      : null,
+    nonRefundSourceExceptions > 0
+      ? `${nonRefundSourceExceptions} source row${nonRefundSourceExceptions === 1 ? '' : 's'}`
+      : null,
+  ].filter(Boolean).join(', ');
+  const exceptionIds = run.exceptions.map((item) =>
+    item.transactionId
+      ?? item.rowId
+      ?? item.targetId?.replace('target_', 'T-')
+      ?? item.id,
+  );
 
   return (
     <div className="space-y-5">
@@ -404,7 +422,9 @@ function CloseOverview({
             <div className="flex items-start gap-2">
               <LockKeyhole className="mt-0.5 size-4 shrink-0 text-[#f4bd69]" />
               <p className="text-xs leading-5 text-white/60">
-                {run.metrics.unresolved} targets worth {formatInr(run.cash.unresolvedExposurePaise)} remain write-blocked.
+                {run.metrics.totalExceptions === 0
+                  ? 'No payment, refund, or source exceptions remain write-blocked.'
+                  : `${run.metrics.totalExceptions} exception${run.metrics.totalExceptions === 1 ? '' : 's'} worth ${formatInr(run.cash.unresolvedExposurePaise)} remain write-blocked (${exceptionBreakdown}).`}
               </p>
             </div>
           </div>
@@ -494,7 +514,9 @@ function CloseOverview({
           <p className="mt-5 text-sm leading-6 text-[#4d5d54]">
             {isBenchmark
               ? 'It is not an unexplained shortfall. The gap is split between a processed settlement not yet received and a duplicate UTR credit that cannot be posted twice. The remaining four cases are record-link failures, not bank cash.'
-              : `${run.journals.length} settlement journals cleared every posting gate. ${run.metrics.unresolved} targets worth ${formatInr(run.cash.unresolvedExposurePaise)} remain held back with an evidence request and next action.`}
+              : `${run.journals.length} settlement journals cleared every posting gate. ${run.metrics.totalExceptions === 0
+                ? 'No payment, refund, or source exceptions remain held.'
+                : `${run.metrics.totalExceptions} exception${run.metrics.totalExceptions === 1 ? '' : 's'} worth ${formatInr(run.cash.unresolvedExposurePaise)} remain held with an evidence request and next action (${exceptionBreakdown}).`}`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {exceptionIds.map((id) => (
@@ -504,7 +526,7 @@ function CloseOverview({
             ))}
           </div>
           <p className="mt-4 flex items-center gap-2 text-[11px] text-[#78857e]">
-            <FileCheck2 className="size-3.5" /> Answer uses tool-computed totals and cites every exception target.
+            <FileCheck2 className="size-3.5" /> Answer uses tool-computed totals and cites every exception.
           </p>
         </section>
       </div>
