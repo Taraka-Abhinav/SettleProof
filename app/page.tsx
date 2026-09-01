@@ -1058,6 +1058,11 @@ export default function Home() {
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [importSession, setImportSession] = useState<ImportedCloseSession | null>(null);
+  const [encryptedExportOpen, setEncryptedExportOpen] = useState(false);
+  const [exportPassphrase, setExportPassphrase] = useState('');
+  const [exportPassphraseConfirmation, setExportPassphraseConfirmation] = useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportingEncryptedPacket, setExportingEncryptedPacket] = useState(false);
 
   const isImported = Boolean(importSession);
   const cutoffDate = importSession?.manifest.cutoffDate ?? '2026-08-31';
@@ -1131,14 +1136,45 @@ export default function Home() {
   };
 
   const exportEncryptedPacket = async () => {
-    const passphrase = window.prompt('Set a strong passphrase for the AES-256-GCM export (12+ characters). It is never stored or sent.');
-    if (!passphrase) return;
-    if (passphrase.length < 12) {
-      window.alert('Use at least 12 characters. No file was created.');
+    setExportError(null);
+    if (exportPassphrase.length < 12) {
+      setExportError('Use at least 12 characters. No file was created.');
       return;
     }
-    const encrypted = await encryptJsonWithPassphrase(proofPacket(true), passphrase);
-    downloadText(`settleproof-${run.batch.id}-full-export.enc.json`, encrypted, 'application/json');
+    if (exportPassphrase !== exportPassphraseConfirmation) {
+      setExportError('The passphrases do not match. No file was created.');
+      return;
+    }
+
+    setExportingEncryptedPacket(true);
+    try {
+      const encrypted = await encryptJsonWithPassphrase(
+        proofPacket(true),
+        exportPassphrase,
+      );
+      downloadText(
+        `settleproof-${run.batch.id}-full-export.enc.json`,
+        encrypted,
+        'application/json',
+      );
+      setEncryptedExportOpen(false);
+      setExportPassphrase('');
+      setExportPassphraseConfirmation('');
+    } catch {
+      setExportError('Encryption could not complete in this browser. No file was created.');
+    } finally {
+      setExportingEncryptedPacket(false);
+    }
+  };
+
+  const setEncryptedExportDialogOpen = (open: boolean) => {
+    if (exportingEncryptedPacket) return;
+    setEncryptedExportOpen(open);
+    if (!open) {
+      setExportPassphrase('');
+      setExportPassphraseConfirmation('');
+      setExportError(null);
+    }
   };
 
   const selectedIsReviewed = selected ? reviewed.has(selected.targetId) : false;
@@ -1215,7 +1251,7 @@ export default function Home() {
               <Button onClick={exportPacket} size="sm" variant="outline" className="border-[#ced7cf] bg-white">
                 <Download /> <span className="hidden sm:inline">Export redacted proof</span><span className="sm:hidden">Export</span>
               </Button>
-              <Button aria-label="Export encrypted full packet" title="AES-256-GCM encrypted full export" onClick={() => void exportEncryptedPacket()} size="icon-sm" variant="outline" className="border-[#ced7cf] bg-white">
+              <Button aria-label="Export encrypted full packet" title="AES-256-GCM encrypted full export" onClick={() => setEncryptedExportOpen(true)} size="icon-sm" variant="outline" className="border-[#ced7cf] bg-white">
                 <LockKeyhole />
               </Button>
             </div>
@@ -1307,6 +1343,71 @@ export default function Home() {
         }}
         run={run}
       />
+      <Dialog open={encryptedExportOpen} onOpenChange={setEncryptedExportDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <div className="mb-2 grid size-10 place-items-center rounded-xl bg-[#edf8f0] text-[#1f6a3c]">
+              <LockKeyhole className="size-5" />
+            </div>
+            <DialogTitle>Encrypt the full reconciliation packet</DialogTitle>
+            <DialogDescription className="leading-6">
+              This export includes raw input rows. It is encrypted in this browser with AES-256-GCM and a key derived through 310,000 PBKDF2-SHA-256 iterations. The passphrase is never stored or sent.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void exportEncryptedPacket();
+            }}
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="export-passphrase">Passphrase</label>
+              <Input
+                aria-describedby="export-passphrase-help"
+                autoComplete="new-password"
+                id="export-passphrase"
+                minLength={12}
+                onChange={(event) => setExportPassphrase(event.target.value)}
+                placeholder="At least 12 characters"
+                type="password"
+                value={exportPassphrase}
+              />
+              <p className="text-xs leading-5 text-[#69766e]" id="export-passphrase-help">
+                Store it separately. SettleProof cannot recover the file without it.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="export-passphrase-confirmation">Confirm passphrase</label>
+              <Input
+                autoComplete="new-password"
+                id="export-passphrase-confirmation"
+                minLength={12}
+                onChange={(event) => setExportPassphraseConfirmation(event.target.value)}
+                type="password"
+                value={exportPassphraseConfirmation}
+              />
+            </div>
+            {exportError && (
+              <p className="rounded-lg border border-[#f0c9b8] bg-[#fff4ef] px-3 py-2 text-xs text-[#8c4022]" role="alert">
+                {exportError}
+              </p>
+            )}
+            <div className="rounded-lg border border-[#dce5dd] bg-[#f7faf7] px-3 py-2 text-xs leading-5 text-[#56655c]">
+              Browser-local encryption · random 128-bit salt · random 96-bit IV · authenticated ciphertext
+            </div>
+            <DialogFooter>
+              <Button disabled={exportingEncryptedPacket} onClick={() => setEncryptedExportDialogOpen(false)} type="button" variant="outline">
+                Cancel
+              </Button>
+              <Button className="bg-[#16271f] text-[#c6ffd4] hover:bg-[#263a30]" disabled={exportingEncryptedPacket} type="submit">
+                {exportingEncryptedPacket ? <RefreshCw className="animate-spin" /> : <LockKeyhole />}
+                {exportingEncryptedPacket ? 'Encrypting…' : 'Encrypt & download'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <ImportCloseDialog
         key={importSession?.manifest.inputSha256 ?? 'benchmark-import'}
         onComplete={(session) => {
