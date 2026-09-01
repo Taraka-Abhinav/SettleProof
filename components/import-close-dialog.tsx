@@ -357,7 +357,7 @@ export function ImportCloseDialog({
                   <span className="grid size-9 place-items-center rounded-lg bg-[#e9e2ff] text-[#604a98]"><ShieldCheck className="size-4" /></span>
                   <span>
                     <span className="block text-sm font-semibold text-[#4e3c76]">Load example raw files</span>
-                    <span className="mt-0.5 block text-xs text-[#776b8a]">217 rows pass through this exact parser—nothing jumps back to the seed.</span>
+                    <span className="mt-0.5 block text-xs text-[#776b8a]">{sampleRun.metrics.sourceRows} rows pass through this exact parser—nothing jumps back to the seed.</span>
                   </span>
                 </span>
                 {busySource === 'pack' ? <RefreshCw className="size-4 animate-spin text-[#6d58a2]" /> : <ArrowRight className="size-4 text-[#6d58a2] transition group-hover:translate-x-0.5" />}

@@ -4,6 +4,7 @@ import type {
   LedgerRow,
   SyntheticBatch,
 } from './reconciliation.ts';
+import { sha256HexSync } from './sha256.ts';
 
 export type ImportSource = 'ledger' | 'gateway' | 'bank';
 export type ImportedRow = LedgerRow | GatewayRow | BankRow;
@@ -41,6 +42,7 @@ export interface ImportManifest {
   inputSha256: string;
   cutoffDate: string;
   openingCashPaise: number;
+  currency: 'INR';
   sourceRows: number;
   acceptedRows: number;
   rejectedRows: number;
@@ -94,7 +96,7 @@ const schemas: Record<ImportSource, FieldSpec[]> = {
       canonical: 'settlementId',
       aliases: ['settlementid', 'expectedsettlementid', 'payoutid', 'batchid'],
     },
-    { canonical: 'currency', aliases: ['currency', 'currencycode'] },
+    { canonical: 'currency', aliases: ['currency', 'currencycode'], required: true },
   ],
   gateway: [
     { canonical: 'id', aliases: ['id', 'rowid', 'transactionid', 'paymentid', 'eventid'] },
@@ -127,7 +129,7 @@ const schemas: Record<ImportSource, FieldSpec[]> = {
     },
     { canonical: 'feePaise', aliases: ['feepaise', 'feeinr', 'fee', 'gatewayfee'] },
     { canonical: 'taxPaise', aliases: ['taxpaise', 'taxinr', 'tax', 'gst'] },
-    { canonical: 'currency', aliases: ['currency', 'currencycode'] },
+    { canonical: 'currency', aliases: ['currency', 'currencycode'], required: true },
   ],
   bank: [
     { canonical: 'id', aliases: ['id', 'rowid', 'transactionid', 'banktransactionid'] },
@@ -145,7 +147,7 @@ const schemas: Record<ImportSource, FieldSpec[]> = {
     { canonical: 'utr', aliases: ['utr', 'bankreference', 'reference', 'rrn'] },
     { canonical: 'narration', aliases: ['narration', 'description', 'remarks', 'details'] },
     { canonical: 'kind', aliases: ['kind', 'category', 'transactionkind'] },
-    { canonical: 'currency', aliases: ['currency', 'currencycode'] },
+    { canonical: 'currency', aliases: ['currency', 'currencycode'], required: true },
   ],
 };
 
@@ -468,7 +470,15 @@ function validateCurrency(
   issues: ImportIssue[],
 ) {
   const currency = cell(record, mapping, 'currency');
-  if (currency && currency.toUpperCase() !== 'INR') {
+  if (!currency) {
+    issues.push({
+      severity: 'error',
+      code: 'MISSING_CURRENCY',
+      message: 'Currency must be supplied explicitly on every row; implicit INR is not accepted.',
+      row: record.row,
+      field: 'currency',
+    });
+  } else if (currency.toUpperCase() !== 'INR') {
     issues.push({
       severity: 'error',
       code: 'UNSUPPORTED_CURRENCY',
@@ -487,12 +497,12 @@ function normalizeRows(
   const issues: ImportIssue[] = [];
   const rows: ImportedRow[] = [];
   const ids = new Set<string>();
-  records.slice(0, MAX_ROWS).forEach((record, index) => {
+  records.slice(0, MAX_ROWS).forEach((record) => {
     const before = issues.length;
     validateCurrency(record, mapping, issues);
     const idRaw = cell(record, mapping, 'id');
     const id = textValue(
-      idRaw || `${source}_${String(index + 1).padStart(6, '0')}`,
+      idRaw || `${source}_${sha256HexSync(JSON.stringify(record.values)).slice(0, 16)}`,
       source,
       record,
       'id',
@@ -519,6 +529,7 @@ function normalizeRows(
         customer: textValue(cell(record, mapping, 'customer'), source, record, 'customer', issues) || 'Unspecified',
         amountPaise: moneyValue(record, mapping, 'amountPaise', issues, { required: true, positive: true }),
         settlementId: textValue(cell(record, mapping, 'settlementId'), source, record, 'settlementId', issues),
+        currency: 'INR',
       } satisfies LedgerRow;
     } else if (source === 'gateway') {
       const type = cell(record, mapping, 'type').toLowerCase();
@@ -532,8 +543,16 @@ function normalizeRows(
       }
       const creditPaise = moneyValue(record, mapping, 'creditPaise', issues, { required: true });
       const debitPaise = moneyValue(record, mapping, 'debitPaise', issues, { required: true });
+      const feePaise = moneyValue(record, mapping, 'feePaise', issues);
+      const taxPaise = moneyValue(record, mapping, 'taxPaise', issues);
       if (creditPaise === 0 && debitPaise === 0) {
         issues.push({ severity: 'error', code: 'ZERO_GATEWAY_ROW', message: 'Gateway credit and debit cannot both be zero.', row: record.row });
+      }
+      if (
+        !Number.isSafeInteger(feePaise + taxPaise) ||
+        feePaise + taxPaise > debitPaise
+      ) {
+        issues.push({ severity: 'error', code: 'INVALID_DEDUCTION_BREAKDOWN', message: 'fee + tax cannot exceed the signed gateway debit.', row: record.row });
       }
       normalizedRow = {
         id,
@@ -545,8 +564,9 @@ function normalizeRows(
         settlementUtr: textValue(cell(record, mapping, 'settlementUtr'), source, record, 'settlementUtr', issues),
         creditPaise,
         debitPaise,
-        feePaise: moneyValue(record, mapping, 'feePaise', issues),
-        taxPaise: moneyValue(record, mapping, 'taxPaise', issues),
+        feePaise,
+        taxPaise,
+        currency: 'INR',
       } satisfies GatewayRow;
     } else {
       const direction = cell(record, mapping, 'direction').toLowerCase();
@@ -567,6 +587,7 @@ function normalizeRows(
         utr: utr || null,
         narration: textValue(cell(record, mapping, 'narration'), source, record, 'narration', issues),
         kind: kind as BankRow['kind'],
+        currency: 'INR',
       } satisfies BankRow;
     }
     if (issues.length === before) {
@@ -604,15 +625,57 @@ export async function parseSourceText(
   if (parsed.records.length === 0 && !issues.some((issue) => issue.code === 'EMPTY_FILE')) {
     issues.push({ severity: 'error', code: 'NO_ROWS', message: 'No data rows were found.' });
   }
-  const controlTotalPaise = normalized.rows.reduce((sum, row) => {
-    if (source === 'ledger') return sum + (row as LedgerRow).amountPaise;
-    if (source === 'gateway') {
-      const gateway = row as GatewayRow;
-      return sum + gateway.creditPaise - gateway.debitPaise;
+  const checkedTotal = (values: number[], label: string) => {
+    let total = 0;
+    for (const value of values) {
+      total += value;
+      if (!Number.isSafeInteger(total)) {
+        issues.push({
+          severity: 'error',
+          code: 'CONTROL_TOTAL_OVERFLOW',
+          message: `${label} exceeds the safe integer-paise range. Split the file before closing.`,
+        });
+        return null;
+      }
     }
-    const bank = row as BankRow;
-    return sum + (bank.direction === 'credit' ? bank.amountPaise : -bank.amountPaise);
-  }, 0);
+    return total;
+  };
+  let controlTotalPaise = 0;
+  if (source === 'ledger') {
+    controlTotalPaise =
+      checkedTotal(
+        (normalized.rows as LedgerRow[]).map((row) => row.amountPaise),
+        'ERP control total',
+      ) ?? 0;
+  } else if (source === 'gateway') {
+    const gatewayRows = normalized.rows as GatewayRow[];
+    const credits = checkedTotal(
+      gatewayRows.map((row) => row.creditPaise),
+      'Gateway credit total',
+    );
+    const debits = checkedTotal(
+      gatewayRows.map((row) => row.debitPaise),
+      'Gateway debit total',
+    );
+    checkedTotal(gatewayRows.map((row) => row.feePaise), 'Gateway fee total');
+    checkedTotal(gatewayRows.map((row) => row.taxPaise), 'Gateway tax total');
+    controlTotalPaise = credits === null || debits === null ? 0 : credits - debits;
+  } else {
+    const bankRows = normalized.rows as BankRow[];
+    const total = checkedTotal(
+      bankRows.map((row) => row.amountPaise),
+      'Bank absolute total',
+    );
+    controlTotalPaise =
+      total === null
+        ? 0
+        : bankRows.reduce(
+            (sum, row) =>
+              sum +
+              (row.direction === 'credit' ? row.amountPaise : -row.amountPaise),
+            0,
+          );
+  }
   return {
     source,
     fileName,
@@ -651,16 +714,16 @@ function csvTable(headers: string[], rows: unknown[][]) {
 export function demoBatchCsvs(batch: SyntheticBatch) {
   return {
     ledger: csvTable(
-      ['order_id', 'receipt', 'booked_at', 'customer', 'amount_inr'],
-      batch.ledger.map((row) => [row.orderId, row.receipt, row.bookedAt, row.customer, (row.amountPaise / 100).toFixed(2)]),
+      ['order_id', 'receipt', 'booked_at', 'customer', 'amount_inr', 'currency'],
+      batch.ledger.map((row) => [row.orderId, row.receipt, row.bookedAt, row.customer, (row.amountPaise / 100).toFixed(2), row.currency]),
     ),
     gateway: csvTable(
-      ['transaction_id', 'type', 'order_id', 'description', 'created_at', 'settlement_id', 'settlement_utr', 'credit_inr', 'debit_inr', 'fee_inr', 'tax_inr'],
-      batch.gateway.map((row) => [row.id, row.type, row.orderId ?? '', row.description, row.createdAt, row.settlementId, row.settlementUtr, (row.creditPaise / 100).toFixed(2), (row.debitPaise / 100).toFixed(2), (row.feePaise / 100).toFixed(2), (row.taxPaise / 100).toFixed(2)]),
+      ['transaction_id', 'type', 'order_id', 'description', 'created_at', 'settlement_id', 'settlement_utr', 'credit_inr', 'debit_inr', 'fee_inr', 'tax_inr', 'currency'],
+      batch.gateway.map((row) => [row.id, row.type, row.orderId ?? '', row.description, row.createdAt, row.settlementId, row.settlementUtr, (row.creditPaise / 100).toFixed(2), (row.debitPaise / 100).toFixed(2), (row.feePaise / 100).toFixed(2), (row.taxPaise / 100).toFixed(2), row.currency]),
     ),
     bank: csvTable(
-      ['transaction_id', 'posted_at', 'direction', 'amount_inr', 'utr', 'narration'],
-      batch.bank.map((row) => [row.id, row.postedAt, row.direction, (row.amountPaise / 100).toFixed(2), row.utr ?? '', row.narration]),
+      ['transaction_id', 'posted_at', 'direction', 'amount_inr', 'utr', 'narration', 'currency'],
+      batch.bank.map((row) => [row.id, row.postedAt, row.direction, (row.amountPaise / 100).toFixed(2), row.utr ?? '', row.narration, row.currency]),
     ),
   };
 }
@@ -700,6 +763,7 @@ export async function buildImportManifest(
     inputSha256: await sha256Hex(JSON.stringify(canonical)),
     cutoffDate,
     openingCashPaise,
+    currency: 'INR',
     sourceRows,
     acceptedRows,
     rejectedRows: sourceRows - acceptedRows,
@@ -720,9 +784,9 @@ export async function buildImportManifest(
 export function templatePackJson() {
   return JSON.stringify(
     {
-      ledger: [{ order_id: 'ORDER-1001', booked_at: '2026-08-31', amount_inr: '1250.00', receipt: 'RCP-1001', customer: 'Example customer' }],
-      gateway: [{ transaction_id: 'PAY-1001', type: 'payment', order_id: 'ORDER-1001', description: 'Captured payment', created_at: '2026-08-31', settlement_id: 'SETL-1001', settlement_utr: 'UTR-1001', credit_inr: '1250.00', debit_inr: '0.00', fee_inr: '0.00', tax_inr: '0.00' }],
-      bank: [{ transaction_id: 'BANK-1001', posted_at: '2026-08-31', direction: 'credit', amount_inr: '1250.00', utr: 'UTR-1001', narration: 'Gateway settlement' }],
+      ledger: [{ order_id: 'ORDER-1001', booked_at: '2026-08-31', amount_inr: '1250.00', currency: 'INR', receipt: 'RCP-1001', customer: 'Example customer' }],
+      gateway: [{ transaction_id: 'PAY-1001', type: 'payment', order_id: 'ORDER-1001', description: 'Captured payment', created_at: '2026-08-31', settlement_id: 'SETL-1001', settlement_utr: 'UTR-1001', credit_inr: '1250.00', debit_inr: '0.00', fee_inr: '0.00', tax_inr: '0.00', currency: 'INR' }],
+      bank: [{ transaction_id: 'BANK-1001', posted_at: '2026-08-31', direction: 'credit', amount_inr: '1250.00', utr: 'UTR-1001', narration: 'Gateway settlement', currency: 'INR' }],
     },
     null,
     2,

@@ -4,10 +4,10 @@
   "seed": 260831,
   "generatedAt": "2026-08-31T10:30:00+05:30",
   "runtime": "v24.14.0",
-  "policyVersion": "settlement-close/v1.3.0",
+  "policyVersion": "settlement-close/v1.5.0",
   "agentMode": "replayable-ai-proposals + deterministic-verifier",
-  "inputSha256": "7e073e0c4954865d8c139dd92037437a4ad6765aafdc1ac8076f1d51c4da333c",
-  "engineSha256": "1a2f99317d099f86a953c1a865826bfb59144dd3f097bb0d1879623ed7975f61",
+  "inputSha256": "8be08a71ed1d8c4952c22acf8485ad647e7685d39d97a0704903dda518bcd595",
+  "engineSha256": "5438c920eeb4233d87a497714bc99fd27aa915edcc2979c6506a1ad7bec65e25",
   "artifacts": [
     "metrics.json",
     "benchmark.json",
@@ -16,6 +16,9 @@
     "close_certificate.json",
     "synthetic_batch.json",
     "ground_truth.json",
-    "dispositions.jsonl"
+    "dispositions.jsonl",
+    "adversarial_suite.json",
+    "challenge_scorecard.json",
+    "benchmark_report.md"
   ]
 }

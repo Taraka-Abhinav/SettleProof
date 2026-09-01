@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "1.0",
+  "name": "SettleProof adversarial finance-control suite",
+  "total": 19,
+  "passed": 19,
+  "failed": 0,
+  "unsafeWrites": 0,
+  "cases": [
+    {
+      "id": "ORDER_INVARIANCE",
+      "control": "Global assignment is order-independent",
+      "attack": "Reverse all three source files",
+      "passed": true,
+      "proof": "Decisions, evidence links, and journal IDs were unchanged."
+    },
+    {
+      "id": "DUPLICATE_CAPTURE",
+      "control": "Duplicate gateway evidence cannot post",
+      "attack": "Replay a payment event with a fresh source ID",
+      "passed": true,
+      "proof": "The full settlement was held and no journal was generated."
+    },
+    {
+      "id": "ONE_PAISE_VARIANCE",
+      "control": "Money equality is exact to the paise",
+      "attack": "Increase one gateway capture by ₹0.01",
+      "passed": true,
+      "proof": "A one-paise mutation blocked the settlement journal."
+    },
+    {
+      "id": "MISSING_BANK_RECEIPT",
+      "control": "Gateway processed does not mean cash received",
+      "attack": "Delete the settlement bank credit",
+      "passed": true,
+      "proof": "The batch records cash in transit and withholds the journal."
+    },
+    {
+      "id": "MISLABELED_DUPLICATE_BANK",
+      "control": "Source classification cannot hide duplicate cash",
+      "attack": "Duplicate a UTR credit but label it operating",
+      "passed": true,
+      "proof": "Both UTR credits were considered and the settlement was quarantined."
+    },
+    {
+      "id": "MISSING_COMPONENT_UTR",
+      "control": "Every settlement component needs the same nonempty UTR",
+      "attack": "Remove the UTR from one component",
+      "passed": true,
+      "proof": "One blank component UTR held the complete settlement."
+    },
+    {
+      "id": "CONFLICTING_COMPONENT_UTR",
+      "control": "Settlement UTR lineage must be consistent",
+      "attack": "Change one component to a different UTR",
+      "passed": true,
+      "proof": "Conflicting UTR lineage blocked the group."
+    },
+    {
+      "id": "POST_CUTOFF_COMPONENT",
+      "control": "Every journal component is cutoff-bound",
+      "attack": "Add a next-period adjustment to an August settlement",
+      "passed": true,
+      "proof": "The late component prevented the August journal."
+    },
+    {
+      "id": "FUTURE_CASH_EXCLUDED",
+      "control": "Historical cash respects the close cutoff",
+      "attack": "Add a bank debit five days after close",
+      "passed": true,
+      "proof": "Closing cash was unchanged and the row was explicitly excluded."
+    },
+    {
+      "id": "CROSS_SETTLEMENT_BANK_REUSE",
+      "control": "One bank receipt cannot authorize two settlements",
+      "attack": "Give two settlements the same UTR, amount, and bank credit",
+      "passed": true,
+      "proof": "Both competing settlements were quarantined; zero journals were generated."
+    },
+    {
+      "id": "ORPHAN_PAYMENT_LISTED",
+      "control": "Unowned payments appear in the honest exception list",
+      "attack": "Add a gateway payment with no ERP target",
+      "passed": true,
+      "proof": "The source row is listed with owner, exposure, SLA, and next action."
+    },
+    {
+      "id": "REFUND_MISSING_BANK_DEBIT",
+      "control": "Refunds reconcile independently from original payments",
+      "attack": "Keep ORDER-1059 payment clean while omitting REF-1059 bank debit",
+      "passed": true,
+      "proof": "The payment stayed matched and REF-1059 was independently held."
+    },
+    {
+      "id": "REFUND_AMOUNT_MISMATCH",
+      "control": "Refund bank debits must match to the paise",
+      "attack": "Increase a refund bank debit by ₹0.01",
+      "passed": true,
+      "proof": "The one-paise refund variance entered the exception list."
+    },
+    {
+      "id": "REFUND_UTR_MISMATCH",
+      "control": "Refund UTR lineage is independently verified",
+      "attack": "Keep amount/date aligned but alter the bank debit UTR",
+      "passed": true,
+      "proof": "The mismatched refund UTR was quarantined."
+    },
+    {
+      "id": "ORPHAN_COMPONENT_LISTED",
+      "control": "Unowned refunds and adjustments block the certificate",
+      "attack": "Add an adjustment outside the close population",
+      "passed": true,
+      "proof": "The unowned component appears in the unified exception list."
+    },
+    {
+      "id": "NON_VACUOUS_CLOSE",
+      "control": "An all-exception batch cannot be called ready",
+      "attack": "Provide no gateway or bank evidence",
+      "passed": true,
+      "proof": "The non-vacuity invariant blocked the certificate."
+    },
+    {
+      "id": "IDEMPOTENT_REPLAY",
+      "control": "Exact reruns produce identical posting intent",
+      "attack": "Replay the same canonical batch twice",
+      "passed": true,
+      "proof": "Journal IDs, amounts, and SHA-256 proof fingerprint were identical."
+    },
+    {
+      "id": "PROMPT_INJECTION_DATA",
+      "control": "Instruction-like source text has no authority",
+      "attack": "Place a policy-bypass instruction inside a gateway adjustment",
+      "passed": true,
+      "proof": "The string remained untrusted data and never became match evidence."
+    },
+    {
+      "id": "PAISE_OVERFLOW",
+      "control": "Aggregate arithmetic cannot exceed exact paise range",
+      "attack": "Sum individually valid values beyond Number.MAX_SAFE_INTEGER",
+      "passed": true,
+      "proof": "The batch was rejected before reconciliation."
+    }
+  ],
+  "disclosure": "These are deterministic control-conformance attacks, not production accuracy claims."
+}

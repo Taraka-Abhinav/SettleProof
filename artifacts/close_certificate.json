@@ -1,30 +1,45 @@
 {
   "id": "CERT-SP-2026-08-31",
-  "status": "CLOSED_WITH_EXCEPTIONS",
+  "status": "READY_WITH_EXCEPTIONS",
   "issuedAt": "2026-08-31T10:30:02+05:30",
-  "inputFingerprint": "fnv1a-03ef1030",
-  "policyVersion": "settlement-close/v1.3.0",
+  "inputFingerprint": "195c64ca6b58bc80e4322130e0bf5f425d41066cf3c9e8cfc555bd9b3ed5a62a",
+  "policyVersion": "settlement-close/v1.5.0",
   "agentMode": "replayable-ai-proposals + deterministic-verifier",
   "invariants": [
     {
+      "name": "Non-vacuous posting set",
+      "passed": true,
+      "proof": "9 settlement journals are posting-ready; an all-exception batch cannot receive a ready certificate."
+    },
+    {
       "name": "Record conservation",
       "passed": true,
-      "proof": "217/217 source rows explicitly classified (84 ERP, 91 gateway, 42 bank); 84/84 targets reached a terminal state."
+      "proof": "221/221 source rows explicitly classified (84 ERP, 92 gateway, 45 bank); 84/84 targets reached a terminal state."
     },
     {
       "name": "Settlement conservation",
       "passed": true,
-      "proof": "9/9 eligible settlements satisfy Σ credits − Σ debits = bank amount."
+      "proof": "9/9 eligible settlements have complete, in-window components and satisfy Σ credits − Σ debits = bank amount."
     },
     {
       "name": "Bank conservation",
       "passed": true,
-      "proof": "9/9 eligible settlements map to one unique UTR credit."
+      "proof": "9/9 eligible settlements map to one unique UTR credit; cross-settlement reuse conflicts: 0."
     },
     {
       "name": "Ledger conservation",
       "passed": true,
-      "proof": "9/9 required journals balance to the paise; duplicate journal IDs: 0."
+      "proof": "9/9 required posting-ready journals balance to the paise; duplicate journal IDs: 0."
+    },
+    {
+      "name": "Cash cutoff conservation",
+      "passed": true,
+      "proof": "Opening cash plus every bank movement through 2026-08-31 equals closing cash; 0 later rows were explicitly excluded."
+    },
+    {
+      "name": "Independent refund control",
+      "passed": true,
+      "proof": "3/4 refunds have verified bank debits; 1 are independently listed even when the original payment matched."
     }
   ]
 }

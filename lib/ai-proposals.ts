@@ -5,6 +5,8 @@
  * quoted evidence span still agree. Editing the input invalidates the replay.
  * Ground truth is never read here.
  */
+import { sha256HexSync } from './sha256.ts';
+
 export interface NarrationProposal {
   extractedOrderId: string;
   confidence: number;
@@ -15,15 +17,6 @@ export interface NarrationProposal {
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function fingerprint(value: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 export const narrationProposalReplay: NarrationProposal[] = Array.from(
@@ -37,7 +30,7 @@ export const narrationProposalReplay: NarrationProposal[] = Array.from(
       extractedOrderId: `AUR-${orderNumber}`,
       confidence: 0.96 - (offset % 3) * 0.01,
       evidenceSpan,
-      sourceFingerprint: fingerprint(sourceNarration),
+      sourceFingerprint: sha256HexSync(sourceNarration),
       replayed: true as const,
     };
   },
@@ -48,7 +41,7 @@ const replayBySource = new Map(
 );
 
 export function getReplayedNarrationProposal(sourceNarration: string) {
-  const proposal = replayBySource.get(fingerprint(sourceNarration)) ?? null;
+  const proposal = replayBySource.get(sha256HexSync(sourceNarration)) ?? null;
   if (!proposal) return null;
   const evidenceIsPresent = normalize(sourceNarration).includes(
     normalize(proposal.evidenceSpan),

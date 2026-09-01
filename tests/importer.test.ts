@@ -26,7 +26,7 @@ async function parsedDemoBundle(): Promise<ImportBundle> {
 }
 
 void test('CSV parsing preserves quoted commas, escaped quotes, BOM, and CRLF', async () => {
-  const csv = '\uFEFForder_id,booked_at,amount_inr,customer\r\n"ORD-1",2026-08-31,123.45,"Doe, ""Jane"""\r\n';
+  const csv = '\uFEFForder_id,booked_at,amount_inr,customer,currency\r\n"ORD-1",2026-08-31,123.45,"Doe, ""Jane""",INR\r\n';
   const result = await parseSourceText('ledger', 'ledger.csv', csv);
   assert.equal(result.rawRowCount, 1);
   assert.equal(result.rows.length, 1);
@@ -42,11 +42,11 @@ void test('money normalization uses integer paise and rejects unsafe formats', (
   assert.equal(parseInrToPaise('-10.00'), null);
 });
 
-void test('the 217-row example files traverse the real importer and preserve outcomes', async () => {
+void test('the 221-row example files traverse the real importer and preserve outcomes', async () => {
   const bundle = await parsedDemoBundle();
   const input = importInput(bundle);
   assert.ok(input);
-  assert.equal(input.ledger.length + input.gateway.length + input.bank.length, 217);
+  assert.equal(input.ledger.length + input.gateway.length + input.bank.length, 221);
   const run = runImportedClose(input, {
     id: 'IMPORT-DEMO',
     period: '2026-08',
@@ -58,7 +58,7 @@ void test('the 217-row example files traverse the real importer and preserve out
   assert.equal(run.metrics.autoMatches, 78);
   assert.equal(run.metrics.unresolved, 6);
   assert.equal(run.journals.length, 9);
-  assert.equal(run.certificate.status, 'CLOSED_WITH_EXCEPTIONS');
+  assert.equal(run.certificate.status, 'READY_WITH_EXCEPTIONS');
   assert.ok(run.certificate.invariants.every((invariant) => invariant.passed));
 });
 
@@ -72,9 +72,10 @@ void test('imported data never receives synthetic precision or recall claims', a
     cutoffDate: '2026-08-31',
   });
   assert.equal(run.metrics.evaluationMode, 'operational');
-  assert.equal(run.metrics.autoMatchPrecision, 0);
-  assert.equal(run.metrics.matchRecall, 0);
-  assert.equal(run.metrics.exceptionRecall, 0);
+  assert.equal(run.metrics.autoMatchPrecision, null);
+  assert.equal(run.metrics.matchRecall, null);
+  assert.equal(run.metrics.exceptionRecall, null);
+  assert.equal(run.metrics.operationalCloseRate, 78 / 84);
 });
 
 void test('invalid rows are blocked and counted instead of silently discarded', async () => {
@@ -135,8 +136,8 @@ void test('import manifest binds file hashes, mappings, counts, and canonical in
   const manifest = await buildImportManifest(bundle, '2026-08-31', 0);
   assert.match(manifest.inputSha256, /^[a-f0-9]{64}$/);
   assert.equal(manifest.sources.length, 3);
-  assert.equal(manifest.sourceRows, 217);
-  assert.equal(manifest.acceptedRows, 217);
+  assert.equal(manifest.sourceRows, 221);
+  assert.equal(manifest.acceptedRows, 221);
   assert.equal(manifest.rejectedRows, 0);
   assert.ok(manifest.sources.every((source) => /^[a-f0-9]{64}$/.test(source.sha256)));
 });

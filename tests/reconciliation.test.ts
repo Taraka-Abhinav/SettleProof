@@ -6,13 +6,14 @@ import {
   reconcileBatch,
   runClose,
 } from '../lib/reconciliation.ts';
+import { runAdversarialControlSuite } from '../lib/control-suite.ts';
 
 void test('the demo batch exceeds the 50-record bar with exact source counts', () => {
   const batch = generateSyntheticBatch(DEMO_SEED);
   assert.equal(batch.ledger.length, 84);
-  assert.equal(batch.gateway.length, 91);
-  assert.equal(batch.bank.length, 42);
-  assert.equal(batch.ledger.length + batch.gateway.length + batch.bank.length, 217);
+  assert.equal(batch.gateway.length, 92);
+  assert.equal(batch.bank.length, 45);
+  assert.equal(batch.ledger.length + batch.gateway.length + batch.bank.length, 221);
 });
 
 void test('every target reaches exactly one terminal state with no silent drop', () => {
@@ -57,10 +58,10 @@ void test('untrusted narration cannot bypass the deterministic verifier', () => 
   );
 });
 
-void test('all four close-certificate invariants pass for the safely posted subset', () => {
+void test('all seven close-certificate invariants pass for the safely posting-ready subset', () => {
   const run = runClose(DEMO_SEED);
-  assert.equal(run.certificate.status, 'CLOSED_WITH_EXCEPTIONS');
-  assert.equal(run.certificate.invariants.length, 4);
+  assert.equal(run.certificate.status, 'READY_WITH_EXCEPTIONS');
+  assert.equal(run.certificate.invariants.length, 7);
   assert.ok(run.certificate.invariants.every((invariant) => invariant.passed));
 });
 
@@ -121,7 +122,7 @@ void test('date, settlement, bank-kind, and cutoff gates cannot be bypassed', ()
   firstCredit.kind = 'operating';
   assert.equal(
     reconcileBatch(wrongKind)[0].reasonCode,
-    'BANK_CREDIT_MISSING',
+    'BANK_CLASSIFICATION_CONFLICT',
   );
 
   const futureCredit = generateSyntheticBatch(DEMO_SEED);
@@ -157,4 +158,25 @@ void test('every source row has an explicit non-empty disposition', () => {
     run.dispositions.filter((item) => item.disposition === 'unclassified').length,
     0,
   );
+});
+
+void test('ORDER-1059 payment can match while REF-1059 independently fails refund control', () => {
+  const run = runClose(DEMO_SEED);
+  assert.equal(
+    run.decisions.find((item) => item.orderId === 'ORDER-1059')?.status,
+    'matched',
+  );
+  const exception = run.exceptions.find((item) => item.transactionId === 'REF-1059');
+  assert.equal(exception?.type, 'refund_missing_bank_debit');
+  assert.equal(exception?.amountPaise, 485_000);
+  assert.equal(run.metrics.refundExceptions, 1);
+  assert.equal(run.metrics.totalExceptions, 7);
+});
+
+void test('all adversarial finance controls, including refund attacks, pass', () => {
+  const suite = runAdversarialControlSuite();
+  assert.equal(suite.total, 19);
+  assert.equal(suite.passed, 19);
+  assert.equal(suite.failed, 0);
+  assert.equal(suite.unsafeWrites, 0);
 });

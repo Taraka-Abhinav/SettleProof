@@ -10,7 +10,7 @@
 
 **Action:** click **Use your data**, then **Load example raw files**.
 
-“This is not an upload façade. SettleProof serializes three finance exports and sends all 217 rows through the same browser-local parser available for merchant CSV or JSON files. Here are the detected mappings, source hashes, control totals, cutoff date, and zero silently dropped rows. The files never leave this session.”
+“This is not an upload façade. SettleProof serializes three finance exports and sends all 221 rows through the same browser-local parser available for merchant CSV or JSON files. Here are the detected mappings, source hashes, control totals, cutoff date, and zero silently dropped rows. The files never leave this session.”
 
 **Action:** continue through **Map**, **Validate**, and **Run verified close**.
 
@@ -20,11 +20,11 @@
 
 **On screen:** source flow and seed.
 
-“This is a deterministic synthetic batch: 84 ERP rows, 91 gateway recon rows, and 42 bank rows—217 source rows and 84 end-to-end targets. It contains fees, tax, refunds, timing drift, noisy references, same-value hard negatives, missing bank cash, and duplicated events.”
+“This is a deterministic synthetic batch: 84 ERP rows, 92 gateway recon rows, and 45 bank rows—221 source rows and 84 end-to-end targets. It contains fees, tax, independently reconciled refunds, timing drift, noisy references, same-value hard negatives, missing bank cash, and duplicated events.”
 
 ## 1:25–1:45 — Run the close
 
-**Action:** click **Replay 217-row close**.
+**Action:** click **Replay 221-row close**.
 
 “The agent profiles sources, generates candidates, verifies money invariants, and posts only balanced journals. Twelve messy narrations need AI interpretation. The model can propose a reference, but it never performs arithmetic and never owns the write gate.”
 

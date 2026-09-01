@@ -3,35 +3,46 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   DEMO_SEED,
-  evaluateDecisions,
-  exceptionsToCsv,
-  generateSyntheticBatch,
-  reconcileBatch,
+  closeExceptionsToCsv,
   runClose,
   runSeededRegression,
 } from '../lib/reconciliation.ts';
+import { runAdversarialControlSuite } from '../lib/control-suite.ts';
 
 const projectRoot = resolve(import.meta.dirname, '..');
 const artifactsDir = resolve(projectRoot, 'artifacts');
 const run = runClose(DEMO_SEED);
-const seededRegression = runSeededRegression(25);
+const seededRegression = runSeededRegression(100);
+const adversarialSuite = runAdversarialControlSuite();
 
 const stressTargetRows = 50_000;
 const repeats = Math.ceil(stressTargetRows / run.metrics.sourceRows);
 let stressRows = 0;
 let stressFalseAutoCloses = 0;
+let stressExceptions = 0;
+let stressRefundExceptions = 0;
+let stressInvariantFailures = 0;
+const latenciesMs: number[] = [];
+for (let index = 0; index < 5; index += 1) runClose(DEMO_SEED + 9_000 + index);
 const stressStart = performance.now();
 for (let index = 0; index < repeats; index += 1) {
-  const batch = generateSyntheticBatch(DEMO_SEED + 10_000 + index);
-  const decisions = reconcileBatch(batch);
-  const evaluation = evaluateDecisions(batch, decisions, 1);
-  stressRows += evaluation.sourceRows;
-  stressFalseAutoCloses += evaluation.falseAutoCloses;
+  const startedAt = performance.now();
+  const close = runClose(DEMO_SEED + 10_000 + index);
+  latenciesMs.push(performance.now() - startedAt);
+  stressRows += close.metrics.sourceRows;
+  stressFalseAutoCloses += close.metrics.falseAutoCloses;
+  stressExceptions += close.metrics.totalExceptions;
+  stressRefundExceptions += close.metrics.refundExceptions;
+  stressInvariantFailures += close.certificate.invariants.filter((item) => !item.passed).length;
 }
 const stressDurationMs = performance.now() - stressStart;
+const sortedLatencies = [...latenciesMs].sort((a, b) => a - b);
+const percentile = (value: number) =>
+  sortedLatencies[Math.min(sortedLatencies.length - 1, Math.ceil(sortedLatencies.length * value) - 1)];
 
 const benchmark = {
-  schemaVersion: '1.0',
+  schemaVersion: '2.0',
+  challengeBar: 'Throughput plus measured accuracy plus an honest exception list. One cherry-picked match proves nothing.',
   seededRegression,
   stress: {
     rows: stressRows,
@@ -39,6 +50,17 @@ const benchmark = {
     durationMs: Number(stressDurationMs.toFixed(2)),
     rowsPerSecond: Math.round((stressRows / stressDurationMs) * 1000),
     falseAutoCloses: stressFalseAutoCloses,
+    totalExceptions: stressExceptions,
+    refundExceptions: stressRefundExceptions,
+    invariantFailures: stressInvariantFailures,
+    latencyMs: {
+      min: Number(sortedLatencies[0].toFixed(3)),
+      p50: Number(percentile(0.5).toFixed(3)),
+      p95: Number(percentile(0.95).toFixed(3)),
+      p99: Number(percentile(0.99).toFixed(3)),
+      max: Number(sortedLatencies.at(-1)!.toFixed(3)),
+    },
+    measurementScope: 'Full runClose loop: generation, proposal replay, deterministic reconciliation, refund checks, posting gate, journals, dispositions, cash, exceptions, metrics, and certificate. CSV parsing, UI rendering, and export serialization excluded.',
   },
   ablation: {
     rulesOnlyCoverage: seededRegression.rulesOnlyCoverage,
@@ -46,6 +68,22 @@ const benchmark = {
     incrementalCoverage:
       seededRegression.coverageMean - seededRegression.rulesOnlyCoverage,
   },
+  confusionMatrix: {
+    correctAutoCloses: seededRegression.correctAutoMatches,
+    unsafeAutoCloses: seededRegression.falseAutoCloses,
+    correctHolds: seededRegression.correctlySurfacedExceptions,
+    incorrectHolds: seededRegression.falseExceptionCount,
+  },
+  adversarialControls: {
+    passed: adversarialSuite.passed,
+    total: adversarialSuite.total,
+    unsafeWrites: adversarialSuite.unsafeWrites,
+  },
+  disclosures: [
+    'Synthetic scored benchmark; not production accuracy.',
+    'Seeded runs vary amounts and operating noise within a disclosed fixed topology.',
+    'Narration proposals are replayed; deterministic financial controls execute live.',
+  ],
 };
 
 const engineSource = await readFile(
@@ -56,6 +94,8 @@ const proposalSource = await readFile(
   resolve(projectRoot, 'lib', 'ai-proposals.ts'),
   'utf8',
 );
+const controlSource = await readFile(resolve(projectRoot, 'lib', 'control-suite.ts'), 'utf8');
+const shaSource = await readFile(resolve(projectRoot, 'lib', 'sha256.ts'), 'utf8');
 const sourcePayload = JSON.stringify({
   ledger: run.batch.ledger,
   gateway: run.batch.gateway,
@@ -89,7 +129,7 @@ const manifest = {
   policyVersion: run.certificate.policyVersion,
   agentMode: run.certificate.agentMode,
   inputSha256: sha256(sourcePayload),
-  engineSha256: sha256(`${engineSource}\n${proposalSource}`),
+  engineSha256: sha256(`reconciliation.ts\n${engineSource}\nai-proposals.ts\n${proposalSource}\ncontrol-suite.ts\n${controlSource}\nsha256.ts\n${shaSource}`),
   artifacts: [
     'metrics.json',
     'benchmark.json',
@@ -99,6 +139,9 @@ const manifest = {
     'synthetic_batch.json',
     'ground_truth.json',
     'dispositions.jsonl',
+    'adversarial_suite.json',
+    'challenge_scorecard.json',
+    'benchmark_report.md',
   ],
 };
 
@@ -113,7 +156,7 @@ const matchesJsonl = run.decisions
       settlementId: item.settlementId,
       amountPaise: item.amountPaise,
       method: item.method,
-      confidence: item.confidence,
+      evidenceStrength: item.evidenceStrength,
       gates: item.gates,
     }),
   )
@@ -142,7 +185,7 @@ await Promise.all([
   ),
   writeFile(
     resolve(artifactsDir, 'exceptions.csv'),
-    `${exceptionsToCsv(run.decisions)}\n`,
+    `${closeExceptionsToCsv(run.exceptions)}\n`,
   ),
   writeFile(resolve(artifactsDir, 'matches.jsonl'), `${matchesJsonl}\n`),
   writeFile(
@@ -168,6 +211,9 @@ await Promise.all([
     resolve(artifactsDir, 'ground_truth.json'),
     `${JSON.stringify(run.batch.truth, null, 2)}\n`,
   ),
+  writeFile(resolve(artifactsDir, 'adversarial_suite.json'), `${JSON.stringify(adversarialSuite, null, 2)}\n`),
+  writeFile(resolve(artifactsDir, 'challenge_scorecard.json'), `${JSON.stringify({ challengeBar: benchmark.challengeBar, benchmark, certificate: run.certificate, currentExceptions: run.exceptions }, null, 2)}\n`),
+  writeFile(resolve(artifactsDir, 'benchmark_report.md'), `# SettleProof benchmark report\n\n> ${benchmark.challengeBar}\n\n- Throughput: ${benchmark.stress.rowsPerSecond.toLocaleString('en-IN')} rows/sec over ${benchmark.stress.rows.toLocaleString('en-IN')} full-loop rows; p95 ${benchmark.stress.latencyMs.p95} ms/batch.\n- Accuracy: ${seededRegression.correctAutoMatches}/${seededRegression.autoMatches} correct auto-closes across ${seededRegression.seeds} seeded batches; ${seededRegression.falseAutoCloses} unsafe auto-closes.\n- Exceptions: ${seededRegression.correctlySurfacedExceptions}/${seededRegression.injectedExceptions} injected target exceptions surfaced; refund exceptions are independently counted.\n- Controls: ${adversarialSuite.passed}/${adversarialSuite.total} adversarial controls passed.\n\n${benchmark.stress.measurementScope}\n`),
 ]);
 
 console.log(

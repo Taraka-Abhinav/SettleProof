@@ -10,7 +10,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 01",
       "amountPaise": 139000,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_002",
@@ -19,7 +20,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 02",
       "amountPaise": 151225,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_003",
@@ -28,7 +30,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 03",
       "amountPaise": 167650,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_004",
@@ -37,7 +40,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 04",
       "amountPaise": 177075,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_005",
@@ -46,7 +50,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 05",
       "amountPaise": 193200,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_006",
@@ -55,7 +60,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 06",
       "amountPaise": 208225,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_007",
@@ -64,7 +70,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 07",
       "amountPaise": 218850,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_008",
@@ -73,7 +80,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 08",
       "amountPaise": 231975,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_009",
@@ -82,7 +90,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 09",
       "amountPaise": 245800,
-      "settlementId": "setl_sp_01"
+      "settlementId": "setl_sp_01",
+      "currency": "INR"
     },
     {
       "id": "erp_010",
@@ -91,7 +100,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 10",
       "amountPaise": 258625,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_011",
@@ -100,7 +110,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 11",
       "amountPaise": 275950,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_012",
@@ -109,7 +120,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 12",
       "amountPaise": 287875,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_013",
@@ -118,7 +130,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 13",
       "amountPaise": 301800,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_014",
@@ -127,7 +140,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 14",
       "amountPaise": 315225,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_015",
@@ -136,7 +150,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 15",
       "amountPaise": 327450,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_016",
@@ -145,7 +160,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 16",
       "amountPaise": 341175,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_017",
@@ -154,7 +170,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 17",
       "amountPaise": 356400,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_018",
@@ -163,7 +180,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 18",
       "amountPaise": 369725,
-      "settlementId": "setl_sp_02"
+      "settlementId": "setl_sp_02",
+      "currency": "INR"
     },
     {
       "id": "erp_019",
@@ -172,7 +190,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 19",
       "amountPaise": 382350,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_020",
@@ -181,7 +200,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 20",
       "amountPaise": 400275,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_021",
@@ -190,7 +210,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 21",
       "amountPaise": 410800,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_022",
@@ -199,7 +220,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 22",
       "amountPaise": 424825,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_023",
@@ -208,7 +230,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 23",
       "amountPaise": 439150,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_024",
@@ -217,7 +240,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 24",
       "amountPaise": 454875,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_025",
@@ -226,7 +250,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 25",
       "amountPaise": 466900,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_026",
@@ -235,7 +260,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 26",
       "amountPaise": 480725,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_027",
@@ -244,7 +270,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 27",
       "amountPaise": 494150,
-      "settlementId": "setl_sp_03"
+      "settlementId": "setl_sp_03",
+      "currency": "INR"
     },
     {
       "id": "erp_028",
@@ -253,7 +280,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 28",
       "amountPaise": 505875,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_029",
@@ -262,7 +290,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 29",
       "amountPaise": 521700,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_030",
@@ -271,7 +300,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 30",
       "amountPaise": 536225,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_031",
@@ -280,7 +310,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 31",
       "amountPaise": 547950,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_032",
@@ -289,7 +320,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 32",
       "amountPaise": 562675,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_033",
@@ -298,7 +330,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 33",
       "amountPaise": 573400,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_034",
@@ -307,7 +340,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 34",
       "amountPaise": 587325,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_035",
@@ -316,7 +350,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 35",
       "amountPaise": 604150,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_036",
@@ -325,7 +360,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 36",
       "amountPaise": 619075,
-      "settlementId": "setl_sp_04"
+      "settlementId": "setl_sp_04",
+      "currency": "INR"
     },
     {
       "id": "erp_037",
@@ -334,7 +370,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 37",
       "amountPaise": 629500,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_038",
@@ -343,7 +380,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 38",
       "amountPaise": 644025,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_039",
@@ -352,7 +390,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 39",
       "amountPaise": 659750,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_040",
@@ -361,7 +400,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 40",
       "amountPaise": 673675,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_041",
@@ -370,7 +410,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 41",
       "amountPaise": 686100,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_042",
@@ -379,7 +420,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 42",
       "amountPaise": 700125,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_043",
@@ -388,7 +430,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 43",
       "amountPaise": 713250,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_044",
@@ -397,7 +440,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 44",
       "amountPaise": 724375,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_045",
@@ -406,7 +450,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 45",
       "amountPaise": 742300,
-      "settlementId": "setl_sp_05"
+      "settlementId": "setl_sp_05",
+      "currency": "INR"
     },
     {
       "id": "erp_046",
@@ -415,7 +460,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 46",
       "amountPaise": 753125,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_047",
@@ -424,7 +470,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 47",
       "amountPaise": 766050,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_048",
@@ -433,7 +480,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 48",
       "amountPaise": 783175,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_049",
@@ -442,7 +490,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 49",
       "amountPaise": 794600,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_050",
@@ -451,7 +500,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 50",
       "amountPaise": 808225,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_051",
@@ -460,7 +510,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 51",
       "amountPaise": 823050,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_052",
@@ -469,7 +520,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 52",
       "amountPaise": 835075,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_053",
@@ -478,7 +530,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 53",
       "amountPaise": 851300,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_054",
@@ -487,7 +540,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 54",
       "amountPaise": 861125,
-      "settlementId": "setl_sp_06"
+      "settlementId": "setl_sp_06",
+      "currency": "INR"
     },
     {
       "id": "erp_055",
@@ -496,7 +550,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 55",
       "amountPaise": 876550,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_056",
@@ -505,7 +560,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 56",
       "amountPaise": 889775,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_057",
@@ -514,7 +570,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 57",
       "amountPaise": 906700,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_058",
@@ -523,16 +580,18 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 58",
       "amountPaise": 916225,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_059",
-      "orderId": "AUR-260059",
+      "orderId": "ORDER-1059",
       "receipt": "RCPT-91059",
       "bookedAt": "2026-08-30",
       "customer": "Customer 59",
       "amountPaise": 932350,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_060",
@@ -541,7 +600,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 60",
       "amountPaise": 946475,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_061",
@@ -550,7 +610,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 61",
       "amountPaise": 962100,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_062",
@@ -559,7 +620,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 62",
       "amountPaise": 974825,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_063",
@@ -568,7 +630,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 63",
       "amountPaise": 988150,
-      "settlementId": "setl_sp_07"
+      "settlementId": "setl_sp_07",
+      "currency": "INR"
     },
     {
       "id": "erp_064",
@@ -577,7 +640,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 64",
       "amountPaise": 999775,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_065",
@@ -586,7 +650,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 65",
       "amountPaise": 1016400,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_066",
@@ -595,7 +660,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 66",
       "amountPaise": 1028425,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_067",
@@ -604,7 +670,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 67",
       "amountPaise": 1042950,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_068",
@@ -613,7 +680,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 68",
       "amountPaise": 1057475,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_069",
@@ -622,7 +690,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 69",
       "amountPaise": 1069800,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_070",
@@ -631,7 +700,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 70",
       "amountPaise": 1082625,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_071",
@@ -640,7 +710,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 71",
       "amountPaise": 1094550,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_072",
@@ -649,7 +720,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 72",
       "amountPaise": 1111875,
-      "settlementId": "setl_sp_08"
+      "settlementId": "setl_sp_08",
+      "currency": "INR"
     },
     {
       "id": "erp_073",
@@ -658,7 +730,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 73",
       "amountPaise": 1121900,
-      "settlementId": "setl_sp_09"
+      "settlementId": "setl_sp_09",
+      "currency": "INR"
     },
     {
       "id": "erp_074",
@@ -667,7 +740,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 74",
       "amountPaise": 1139625,
-      "settlementId": "setl_sp_09"
+      "settlementId": "setl_sp_09",
+      "currency": "INR"
     },
     {
       "id": "erp_075",
@@ -676,7 +750,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 75",
       "amountPaise": 1149650,
-      "settlementId": "setl_sp_09"
+      "settlementId": "setl_sp_09",
+      "currency": "INR"
     },
     {
       "id": "erp_076",
@@ -685,7 +760,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 76",
       "amountPaise": 1165375,
-      "settlementId": "setl_sp_09"
+      "settlementId": "setl_sp_09",
+      "currency": "INR"
     },
     {
       "id": "erp_077",
@@ -694,7 +770,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 77",
       "amountPaise": 1178600,
-      "settlementId": "setl_sp_09"
+      "settlementId": "setl_sp_09",
+      "currency": "INR"
     },
     {
       "id": "erp_078",
@@ -703,7 +780,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 78",
       "amountPaise": 1191625,
-      "settlementId": "setl_sp_09"
+      "settlementId": "setl_sp_09",
+      "currency": "INR"
     },
     {
       "id": "erp_079",
@@ -712,7 +790,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 79",
       "amountPaise": 1204750,
-      "settlementId": "setl_sp_10"
+      "settlementId": "setl_sp_10",
+      "currency": "INR"
     },
     {
       "id": "erp_080",
@@ -721,7 +800,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 80",
       "amountPaise": 1221175,
-      "settlementId": "setl_sp_10"
+      "settlementId": "setl_sp_10",
+      "currency": "INR"
     },
     {
       "id": "erp_081",
@@ -730,7 +810,8 @@
       "bookedAt": "2026-08-28",
       "customer": "Customer 81",
       "amountPaise": 1231600,
-      "settlementId": "setl_sp_10"
+      "settlementId": "setl_sp_10",
+      "currency": "INR"
     },
     {
       "id": "erp_082",
@@ -739,7 +820,8 @@
       "bookedAt": "2026-08-29",
       "customer": "Customer 82",
       "amountPaise": 1244825,
-      "settlementId": "setl_sp_10"
+      "settlementId": "setl_sp_10",
+      "currency": "INR"
     },
     {
       "id": "erp_083",
@@ -748,7 +830,8 @@
       "bookedAt": "2026-08-30",
       "customer": "Customer 83",
       "amountPaise": 1258850,
-      "settlementId": "setl_sp_11"
+      "settlementId": "setl_sp_11",
+      "currency": "INR"
     },
     {
       "id": "erp_084",
@@ -757,7 +840,8 @@
       "bookedAt": "2026-08-31",
       "customer": "Customer 84",
       "amountPaise": 1272775,
-      "settlementId": "setl_sp_12"
+      "settlementId": "setl_sp_12",
+      "currency": "INR"
     }
   ],
   "gateway": [
@@ -772,7 +856,8 @@
       "creditPaise": 139000,
       "debitPaise": 3280,
       "feePaise": 2780,
-      "taxPaise": 500
+      "taxPaise": 500,
+      "currency": "INR"
     },
     {
       "id": "gw_002",
@@ -785,7 +870,8 @@
       "creditPaise": 151225,
       "debitPaise": 3570,
       "feePaise": 3025,
-      "taxPaise": 545
+      "taxPaise": 545,
+      "currency": "INR"
     },
     {
       "id": "gw_003",
@@ -798,7 +884,8 @@
       "creditPaise": 167650,
       "debitPaise": 3957,
       "feePaise": 3353,
-      "taxPaise": 604
+      "taxPaise": 604,
+      "currency": "INR"
     },
     {
       "id": "gw_004",
@@ -811,7 +898,8 @@
       "creditPaise": 177075,
       "debitPaise": 4180,
       "feePaise": 3542,
-      "taxPaise": 638
+      "taxPaise": 638,
+      "currency": "INR"
     },
     {
       "id": "gw_005",
@@ -824,7 +912,8 @@
       "creditPaise": 193200,
       "debitPaise": 4560,
       "feePaise": 3864,
-      "taxPaise": 696
+      "taxPaise": 696,
+      "currency": "INR"
     },
     {
       "id": "gw_006",
@@ -837,7 +926,8 @@
       "creditPaise": 208225,
       "debitPaise": 4915,
       "feePaise": 4165,
-      "taxPaise": 750
+      "taxPaise": 750,
+      "currency": "INR"
     },
     {
       "id": "gw_007",
@@ -850,7 +940,8 @@
       "creditPaise": 218850,
       "debitPaise": 5165,
       "feePaise": 4377,
-      "taxPaise": 788
+      "taxPaise": 788,
+      "currency": "INR"
     },
     {
       "id": "gw_008",
@@ -863,7 +954,8 @@
       "creditPaise": 231975,
       "debitPaise": 5475,
       "feePaise": 4640,
-      "taxPaise": 835
+      "taxPaise": 835,
+      "currency": "INR"
     },
     {
       "id": "gw_009",
@@ -876,7 +968,8 @@
       "creditPaise": 245800,
       "debitPaise": 5801,
       "feePaise": 4916,
-      "taxPaise": 885
+      "taxPaise": 885,
+      "currency": "INR"
     },
     {
       "id": "gw_010",
@@ -889,7 +982,8 @@
       "creditPaise": 258625,
       "debitPaise": 6104,
       "feePaise": 5173,
-      "taxPaise": 931
+      "taxPaise": 931,
+      "currency": "INR"
     },
     {
       "id": "gw_011",
@@ -902,7 +996,8 @@
       "creditPaise": 275950,
       "debitPaise": 6512,
       "feePaise": 5519,
-      "taxPaise": 993
+      "taxPaise": 993,
+      "currency": "INR"
     },
     {
       "id": "gw_012",
@@ -915,7 +1010,8 @@
       "creditPaise": 287875,
       "debitPaise": 6794,
       "feePaise": 5758,
-      "taxPaise": 1036
+      "taxPaise": 1036,
+      "currency": "INR"
     },
     {
       "id": "gw_013",
@@ -928,7 +1024,8 @@
       "creditPaise": 301800,
       "debitPaise": 7122,
       "feePaise": 6036,
-      "taxPaise": 1086
+      "taxPaise": 1086,
+      "currency": "INR"
     },
     {
       "id": "gw_014",
@@ -941,7 +1038,8 @@
       "creditPaise": 315225,
       "debitPaise": 7440,
       "feePaise": 6305,
-      "taxPaise": 1135
+      "taxPaise": 1135,
+      "currency": "INR"
     },
     {
       "id": "gw_015",
@@ -954,7 +1052,8 @@
       "creditPaise": 327450,
       "debitPaise": 7728,
       "feePaise": 6549,
-      "taxPaise": 1179
+      "taxPaise": 1179,
+      "currency": "INR"
     },
     {
       "id": "gw_016",
@@ -967,7 +1066,8 @@
       "creditPaise": 341175,
       "debitPaise": 8052,
       "feePaise": 6824,
-      "taxPaise": 1228
+      "taxPaise": 1228,
+      "currency": "INR"
     },
     {
       "id": "gw_017",
@@ -980,7 +1080,8 @@
       "creditPaise": 356400,
       "debitPaise": 8411,
       "feePaise": 7128,
-      "taxPaise": 1283
+      "taxPaise": 1283,
+      "currency": "INR"
     },
     {
       "id": "gw_018",
@@ -993,7 +1094,8 @@
       "creditPaise": 369725,
       "debitPaise": 8726,
       "feePaise": 7395,
-      "taxPaise": 1331
+      "taxPaise": 1331,
+      "currency": "INR"
     },
     {
       "id": "gw_019",
@@ -1006,7 +1108,8 @@
       "creditPaise": 382350,
       "debitPaise": 9023,
       "feePaise": 7647,
-      "taxPaise": 1376
+      "taxPaise": 1376,
+      "currency": "INR"
     },
     {
       "id": "gw_020",
@@ -1019,7 +1122,8 @@
       "creditPaise": 400275,
       "debitPaise": 9447,
       "feePaise": 8006,
-      "taxPaise": 1441
+      "taxPaise": 1441,
+      "currency": "INR"
     },
     {
       "id": "gw_021",
@@ -1032,7 +1136,8 @@
       "creditPaise": 410800,
       "debitPaise": 9695,
       "feePaise": 8216,
-      "taxPaise": 1479
+      "taxPaise": 1479,
+      "currency": "INR"
     },
     {
       "id": "gw_022",
@@ -1045,7 +1150,8 @@
       "creditPaise": 424825,
       "debitPaise": 10026,
       "feePaise": 8497,
-      "taxPaise": 1529
+      "taxPaise": 1529,
+      "currency": "INR"
     },
     {
       "id": "gw_023",
@@ -1058,7 +1164,8 @@
       "creditPaise": 439150,
       "debitPaise": 10364,
       "feePaise": 8783,
-      "taxPaise": 1581
+      "taxPaise": 1581,
+      "currency": "INR"
     },
     {
       "id": "gw_024",
@@ -1071,7 +1178,8 @@
       "creditPaise": 454875,
       "debitPaise": 10736,
       "feePaise": 9098,
-      "taxPaise": 1638
+      "taxPaise": 1638,
+      "currency": "INR"
     },
     {
       "id": "gw_025",
@@ -1084,7 +1192,8 @@
       "creditPaise": 466900,
       "debitPaise": 11019,
       "feePaise": 9338,
-      "taxPaise": 1681
+      "taxPaise": 1681,
+      "currency": "INR"
     },
     {
       "id": "gw_026",
@@ -1097,7 +1206,8 @@
       "creditPaise": 480725,
       "debitPaise": 11346,
       "feePaise": 9615,
-      "taxPaise": 1731
+      "taxPaise": 1731,
+      "currency": "INR"
     },
     {
       "id": "gw_027",
@@ -1110,7 +1220,8 @@
       "creditPaise": 494150,
       "debitPaise": 11662,
       "feePaise": 9883,
-      "taxPaise": 1779
+      "taxPaise": 1779,
+      "currency": "INR"
     },
     {
       "id": "gw_028",
@@ -1123,7 +1234,8 @@
       "creditPaise": 505875,
       "debitPaise": 11939,
       "feePaise": 10118,
-      "taxPaise": 1821
+      "taxPaise": 1821,
+      "currency": "INR"
     },
     {
       "id": "gw_029",
@@ -1136,7 +1248,8 @@
       "creditPaise": 521700,
       "debitPaise": 12312,
       "feePaise": 10434,
-      "taxPaise": 1878
+      "taxPaise": 1878,
+      "currency": "INR"
     },
     {
       "id": "gw_030",
@@ -1149,7 +1262,8 @@
       "creditPaise": 536225,
       "debitPaise": 12656,
       "feePaise": 10725,
-      "taxPaise": 1931
+      "taxPaise": 1931,
+      "currency": "INR"
     },
     {
       "id": "gw_031",
@@ -1162,7 +1276,8 @@
       "creditPaise": 547950,
       "debitPaise": 12932,
       "feePaise": 10959,
-      "taxPaise": 1973
+      "taxPaise": 1973,
+      "currency": "INR"
     },
     {
       "id": "gw_032",
@@ -1175,7 +1290,8 @@
       "creditPaise": 562675,
       "debitPaise": 13280,
       "feePaise": 11254,
-      "taxPaise": 2026
+      "taxPaise": 2026,
+      "currency": "INR"
     },
     {
       "id": "gw_033",
@@ -1188,7 +1304,8 @@
       "creditPaise": 573400,
       "debitPaise": 13532,
       "feePaise": 11468,
-      "taxPaise": 2064
+      "taxPaise": 2064,
+      "currency": "INR"
     },
     {
       "id": "gw_034",
@@ -1201,7 +1318,8 @@
       "creditPaise": 587325,
       "debitPaise": 13861,
       "feePaise": 11747,
-      "taxPaise": 2114
+      "taxPaise": 2114,
+      "currency": "INR"
     },
     {
       "id": "gw_035",
@@ -1214,7 +1332,8 @@
       "creditPaise": 604150,
       "debitPaise": 14258,
       "feePaise": 12083,
-      "taxPaise": 2175
+      "taxPaise": 2175,
+      "currency": "INR"
     },
     {
       "id": "gw_036",
@@ -1227,7 +1346,8 @@
       "creditPaise": 619075,
       "debitPaise": 14611,
       "feePaise": 12382,
-      "taxPaise": 2229
+      "taxPaise": 2229,
+      "currency": "INR"
     },
     {
       "id": "gw_037",
@@ -1240,7 +1360,8 @@
       "creditPaise": 629500,
       "debitPaise": 14856,
       "feePaise": 12590,
-      "taxPaise": 2266
+      "taxPaise": 2266,
+      "currency": "INR"
     },
     {
       "id": "gw_038",
@@ -1253,7 +1374,8 @@
       "creditPaise": 644025,
       "debitPaise": 15200,
       "feePaise": 12881,
-      "taxPaise": 2319
+      "taxPaise": 2319,
+      "currency": "INR"
     },
     {
       "id": "gw_039",
@@ -1266,7 +1388,8 @@
       "creditPaise": 659750,
       "debitPaise": 15570,
       "feePaise": 13195,
-      "taxPaise": 2375
+      "taxPaise": 2375,
+      "currency": "INR"
     },
     {
       "id": "gw_040",
@@ -1279,7 +1402,8 @@
       "creditPaise": 673675,
       "debitPaise": 15899,
       "feePaise": 13474,
-      "taxPaise": 2425
+      "taxPaise": 2425,
+      "currency": "INR"
     },
     {
       "id": "gw_041",
@@ -1292,7 +1416,8 @@
       "creditPaise": 686100,
       "debitPaise": 16192,
       "feePaise": 13722,
-      "taxPaise": 2470
+      "taxPaise": 2470,
+      "currency": "INR"
     },
     {
       "id": "gw_042",
@@ -1305,7 +1430,8 @@
       "creditPaise": 700125,
       "debitPaise": 16524,
       "feePaise": 14003,
-      "taxPaise": 2521
+      "taxPaise": 2521,
+      "currency": "INR"
     },
     {
       "id": "gw_043",
@@ -1318,7 +1444,8 @@
       "creditPaise": 713250,
       "debitPaise": 16833,
       "feePaise": 14265,
-      "taxPaise": 2568
+      "taxPaise": 2568,
+      "currency": "INR"
     },
     {
       "id": "gw_044",
@@ -1331,7 +1458,8 @@
       "creditPaise": 724375,
       "debitPaise": 17096,
       "feePaise": 14488,
-      "taxPaise": 2608
+      "taxPaise": 2608,
+      "currency": "INR"
     },
     {
       "id": "gw_045",
@@ -1344,7 +1472,8 @@
       "creditPaise": 742300,
       "debitPaise": 17518,
       "feePaise": 14846,
-      "taxPaise": 2672
+      "taxPaise": 2672,
+      "currency": "INR"
     },
     {
       "id": "gw_046",
@@ -1357,7 +1486,8 @@
       "creditPaise": 753125,
       "debitPaise": 17774,
       "feePaise": 15063,
-      "taxPaise": 2711
+      "taxPaise": 2711,
+      "currency": "INR"
     },
     {
       "id": "gw_047",
@@ -1370,7 +1500,8 @@
       "creditPaise": 766050,
       "debitPaise": 18079,
       "feePaise": 15321,
-      "taxPaise": 2758
+      "taxPaise": 2758,
+      "currency": "INR"
     },
     {
       "id": "gw_048",
@@ -1383,7 +1514,8 @@
       "creditPaise": 783175,
       "debitPaise": 18484,
       "feePaise": 15664,
-      "taxPaise": 2820
+      "taxPaise": 2820,
+      "currency": "INR"
     },
     {
       "id": "gw_049",
@@ -1396,7 +1528,8 @@
       "creditPaise": 794600,
       "debitPaise": 18753,
       "feePaise": 15892,
-      "taxPaise": 2861
+      "taxPaise": 2861,
+      "currency": "INR"
     },
     {
       "id": "gw_050",
@@ -1409,7 +1542,8 @@
       "creditPaise": 808225,
       "debitPaise": 19075,
       "feePaise": 16165,
-      "taxPaise": 2910
+      "taxPaise": 2910,
+      "currency": "INR"
     },
     {
       "id": "gw_051",
@@ -1422,7 +1556,8 @@
       "creditPaise": 823050,
       "debitPaise": 19424,
       "feePaise": 16461,
-      "taxPaise": 2963
+      "taxPaise": 2963,
+      "currency": "INR"
     },
     {
       "id": "gw_052",
@@ -1435,7 +1570,8 @@
       "creditPaise": 835075,
       "debitPaise": 19708,
       "feePaise": 16702,
-      "taxPaise": 3006
+      "taxPaise": 3006,
+      "currency": "INR"
     },
     {
       "id": "gw_053",
@@ -1448,7 +1584,8 @@
       "creditPaise": 851300,
       "debitPaise": 20091,
       "feePaise": 17026,
-      "taxPaise": 3065
+      "taxPaise": 3065,
+      "currency": "INR"
     },
     {
       "id": "gw_054",
@@ -1461,7 +1598,8 @@
       "creditPaise": 861125,
       "debitPaise": 20323,
       "feePaise": 17223,
-      "taxPaise": 3100
+      "taxPaise": 3100,
+      "currency": "INR"
     },
     {
       "id": "gw_055",
@@ -1474,7 +1612,8 @@
       "creditPaise": 876550,
       "debitPaise": 20687,
       "feePaise": 17531,
-      "taxPaise": 3156
+      "taxPaise": 3156,
+      "currency": "INR"
     },
     {
       "id": "gw_056",
@@ -1487,7 +1626,8 @@
       "creditPaise": 889775,
       "debitPaise": 20999,
       "feePaise": 17796,
-      "taxPaise": 3203
+      "taxPaise": 3203,
+      "currency": "INR"
     },
     {
       "id": "gw_057",
@@ -1500,7 +1640,8 @@
       "creditPaise": 906700,
       "debitPaise": 21398,
       "feePaise": 18134,
-      "taxPaise": 3264
+      "taxPaise": 3264,
+      "currency": "INR"
     },
     {
       "id": "gw_058",
@@ -1513,12 +1654,13 @@
       "creditPaise": 916225,
       "debitPaise": 21624,
       "feePaise": 18325,
-      "taxPaise": 3299
+      "taxPaise": 3299,
+      "currency": "INR"
     },
     {
       "id": "gw_059",
       "type": "payment",
-      "orderId": "aur / 260059",
+      "orderId": "order / 1059",
       "description": "Capture from receipt rcpt-91059",
       "createdAt": "2026-08-30",
       "settlementId": "setl_sp_07",
@@ -1526,7 +1668,8 @@
       "creditPaise": 932350,
       "debitPaise": 22003,
       "feePaise": 18647,
-      "taxPaise": 3356
+      "taxPaise": 3356,
+      "currency": "INR"
     },
     {
       "id": "gw_060",
@@ -1539,7 +1682,8 @@
       "creditPaise": 946475,
       "debitPaise": 22337,
       "feePaise": 18930,
-      "taxPaise": 3407
+      "taxPaise": 3407,
+      "currency": "INR"
     },
     {
       "id": "gw_061",
@@ -1552,7 +1696,8 @@
       "creditPaise": 962100,
       "debitPaise": 22706,
       "feePaise": 19242,
-      "taxPaise": 3464
+      "taxPaise": 3464,
+      "currency": "INR"
     },
     {
       "id": "gw_062",
@@ -1565,7 +1710,8 @@
       "creditPaise": 974825,
       "debitPaise": 23006,
       "feePaise": 19497,
-      "taxPaise": 3509
+      "taxPaise": 3509,
+      "currency": "INR"
     },
     {
       "id": "gw_063",
@@ -1578,7 +1724,8 @@
       "creditPaise": 988150,
       "debitPaise": 23320,
       "feePaise": 19763,
-      "taxPaise": 3557
+      "taxPaise": 3557,
+      "currency": "INR"
     },
     {
       "id": "gw_064",
@@ -1591,7 +1738,8 @@
       "creditPaise": 999775,
       "debitPaise": 23595,
       "feePaise": 19996,
-      "taxPaise": 3599
+      "taxPaise": 3599,
+      "currency": "INR"
     },
     {
       "id": "gw_065",
@@ -1604,7 +1752,8 @@
       "creditPaise": 1016400,
       "debitPaise": 23987,
       "feePaise": 20328,
-      "taxPaise": 3659
+      "taxPaise": 3659,
+      "currency": "INR"
     },
     {
       "id": "gw_066",
@@ -1617,7 +1766,8 @@
       "creditPaise": 1028425,
       "debitPaise": 24271,
       "feePaise": 20569,
-      "taxPaise": 3702
+      "taxPaise": 3702,
+      "currency": "INR"
     },
     {
       "id": "gw_067",
@@ -1630,7 +1780,8 @@
       "creditPaise": 1042950,
       "debitPaise": 24614,
       "feePaise": 20859,
-      "taxPaise": 3755
+      "taxPaise": 3755,
+      "currency": "INR"
     },
     {
       "id": "gw_068",
@@ -1643,7 +1794,8 @@
       "creditPaise": 1057475,
       "debitPaise": 24957,
       "feePaise": 21150,
-      "taxPaise": 3807
+      "taxPaise": 3807,
+      "currency": "INR"
     },
     {
       "id": "gw_069",
@@ -1656,7 +1808,8 @@
       "creditPaise": 1069800,
       "debitPaise": 25247,
       "feePaise": 21396,
-      "taxPaise": 3851
+      "taxPaise": 3851,
+      "currency": "INR"
     },
     {
       "id": "gw_070",
@@ -1669,7 +1822,8 @@
       "creditPaise": 1082625,
       "debitPaise": 25551,
       "feePaise": 21653,
-      "taxPaise": 3898
+      "taxPaise": 3898,
+      "currency": "INR"
     },
     {
       "id": "gw_071",
@@ -1682,7 +1836,8 @@
       "creditPaise": 1094550,
       "debitPaise": 25831,
       "feePaise": 21891,
-      "taxPaise": 3940
+      "taxPaise": 3940,
+      "currency": "INR"
     },
     {
       "id": "gw_072",
@@ -1695,7 +1850,8 @@
       "creditPaise": 1111875,
       "debitPaise": 26241,
       "feePaise": 22238,
-      "taxPaise": 4003
+      "taxPaise": 4003,
+      "currency": "INR"
     },
     {
       "id": "gw_073",
@@ -1708,7 +1864,8 @@
       "creditPaise": 1121900,
       "debitPaise": 26477,
       "feePaise": 22438,
-      "taxPaise": 4039
+      "taxPaise": 4039,
+      "currency": "INR"
     },
     {
       "id": "gw_074",
@@ -1721,7 +1878,8 @@
       "creditPaise": 1139625,
       "debitPaise": 26896,
       "feePaise": 22793,
-      "taxPaise": 4103
+      "taxPaise": 4103,
+      "currency": "INR"
     },
     {
       "id": "gw_075",
@@ -1734,7 +1892,8 @@
       "creditPaise": 1149650,
       "debitPaise": 27132,
       "feePaise": 22993,
-      "taxPaise": 4139
+      "taxPaise": 4139,
+      "currency": "INR"
     },
     {
       "id": "gw_076",
@@ -1747,7 +1906,8 @@
       "creditPaise": 1165375,
       "debitPaise": 27503,
       "feePaise": 23308,
-      "taxPaise": 4195
+      "taxPaise": 4195,
+      "currency": "INR"
     },
     {
       "id": "gw_077",
@@ -1760,7 +1920,8 @@
       "creditPaise": 1178600,
       "debitPaise": 27815,
       "feePaise": 23572,
-      "taxPaise": 4243
+      "taxPaise": 4243,
+      "currency": "INR"
     },
     {
       "id": "gw_078",
@@ -1773,7 +1934,8 @@
       "creditPaise": 1191625,
       "debitPaise": 28123,
       "feePaise": 23833,
-      "taxPaise": 4290
+      "taxPaise": 4290,
+      "currency": "INR"
     },
     {
       "id": "gw_080",
@@ -1786,7 +1948,8 @@
       "creditPaise": 1271175,
       "debitPaise": 28820,
       "feePaise": 24424,
-      "taxPaise": 4396
+      "taxPaise": 4396,
+      "currency": "INR"
     },
     {
       "id": "gw_081",
@@ -1799,7 +1962,8 @@
       "creditPaise": 1231600,
       "debitPaise": 29066,
       "feePaise": 24632,
-      "taxPaise": 4434
+      "taxPaise": 4434,
+      "currency": "INR"
     },
     {
       "id": "gw_081_b",
@@ -1812,7 +1976,8 @@
       "creditPaise": 1231600,
       "debitPaise": 29066,
       "feePaise": 24632,
-      "taxPaise": 4434
+      "taxPaise": 4434,
+      "currency": "INR"
     },
     {
       "id": "gw_082",
@@ -1825,7 +1990,8 @@
       "creditPaise": 1244825,
       "debitPaise": 29378,
       "feePaise": 24897,
-      "taxPaise": 4481
+      "taxPaise": 4481,
+      "currency": "INR"
     },
     {
       "id": "gw_082_dup",
@@ -1838,7 +2004,8 @@
       "creditPaise": 1244825,
       "debitPaise": 29378,
       "feePaise": 24897,
-      "taxPaise": 4481
+      "taxPaise": 4481,
+      "currency": "INR"
     },
     {
       "id": "gw_083",
@@ -1851,7 +2018,8 @@
       "creditPaise": 1258850,
       "debitPaise": 29709,
       "feePaise": 25177,
-      "taxPaise": 4532
+      "taxPaise": 4532,
+      "currency": "INR"
     },
     {
       "id": "gw_084",
@@ -1864,7 +2032,8 @@
       "creditPaise": 1272775,
       "debitPaise": 30038,
       "feePaise": 25456,
-      "taxPaise": 4582
+      "taxPaise": 4582,
+      "currency": "INR"
     },
     {
       "id": "gw_adj_01",
@@ -1877,7 +2046,8 @@
       "creditPaise": 0,
       "debitPaise": 37500,
       "feePaise": 0,
-      "taxPaise": 0
+      "taxPaise": 0,
+      "currency": "INR"
     },
     {
       "id": "gw_adj_02",
@@ -1890,7 +2060,8 @@
       "creditPaise": 0,
       "debitPaise": 82000,
       "feePaise": 0,
-      "taxPaise": 0
+      "taxPaise": 0,
+      "currency": "INR"
     },
     {
       "id": "gw_adj_03",
@@ -1903,7 +2074,8 @@
       "creditPaise": 0,
       "debitPaise": 41250,
       "feePaise": 0,
-      "taxPaise": 0
+      "taxPaise": 0,
+      "currency": "INR"
     },
     {
       "id": "gw_adj_04",
@@ -1916,7 +2088,8 @@
       "creditPaise": 0,
       "debitPaise": 19900,
       "feePaise": 0,
-      "taxPaise": 0
+      "taxPaise": 0,
+      "currency": "INR"
     },
     {
       "id": "gw_adj_05",
@@ -1929,7 +2102,8 @@
       "creditPaise": 0,
       "debitPaise": 63000,
       "feePaise": 0,
-      "taxPaise": 0
+      "taxPaise": 0,
+      "currency": "INR"
     },
     {
       "id": "gw_adj_06",
@@ -1942,7 +2116,22 @@
       "creditPaise": 0,
       "debitPaise": 27750,
       "feePaise": 0,
-      "taxPaise": 0
+      "taxPaise": 0,
+      "currency": "INR"
+    },
+    {
+      "id": "REF-1059",
+      "type": "refund",
+      "orderId": "ORDER-1059",
+      "description": "Customer refund for ORDER-1059",
+      "createdAt": "2026-08-30",
+      "settlementId": "setl_sp_07",
+      "settlementUtr": "UTR2608SP0007",
+      "creditPaise": 0,
+      "debitPaise": 485000,
+      "feePaise": 0,
+      "taxPaise": 0,
+      "currency": "INR"
     }
   ],
   "bank": [
@@ -1953,7 +2142,8 @@
       "amountPaise": 1692097,
       "utr": "UTR2608SP0001",
       "narration": "NEFT RAZORPAY setl_sp_01 UTR2608SP0001",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_02",
@@ -1962,7 +2152,8 @@
       "amountPaise": 2767336,
       "utr": "UTR2608SP0002",
       "narration": "NEFT RAZORPAY setl_sp_02 UTR2608SP0002",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_03",
@@ -1971,7 +2162,8 @@
       "amountPaise": 3860732,
       "utr": "UTR2608SP0003",
       "narration": "NEFT RAZORPAY setl_sp_03 UTR2608SP0003",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_04",
@@ -1980,7 +2172,8 @@
       "amountPaise": 4938994,
       "utr": "UTR2608SP0004",
       "narration": "NEFT RAZORPAY setl_sp_04 UTR2608SP0004",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_05",
@@ -1989,7 +2182,8 @@
       "amountPaise": 6027412,
       "utr": "UTR2608SP0005",
       "narration": "NEFT RAZORPAY setl_sp_05 UTR2608SP0005",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_06",
@@ -1998,16 +2192,18 @@
       "amountPaise": 7104014,
       "utr": "UTR2608SP0006",
       "narration": "NEFT RAZORPAY setl_sp_06 UTR2608SP0006",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_07",
       "postedAt": "2026-08-31",
       "direction": "credit",
-      "amountPaise": 8195070,
+      "amountPaise": 7710070,
       "utr": "UTR2608SP0007",
       "narration": "NEFT RAZORPAY setl_sp_07 UTR2608SP0007",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_08",
@@ -2016,7 +2212,8 @@
       "amountPaise": 9279581,
       "utr": "UTR2608SP0008",
       "narration": "NEFT RAZORPAY setl_sp_08 UTR2608SP0008",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_09",
@@ -2025,7 +2222,8 @@
       "amountPaise": 6782829,
       "utr": "UTR2608SP0009",
       "narration": "NEFT RAZORPAY setl_sp_09 UTR2608SP0009",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_10",
@@ -2034,7 +2232,8 @@
       "amountPaise": 5806917,
       "utr": "UTR2608SP0010",
       "narration": "NEFT RAZORPAY setl_sp_10 UTR2608SP0010",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_12",
@@ -2043,7 +2242,8 @@
       "amountPaise": 1242737,
       "utr": "UTR2608SP0012",
       "narration": "NEFT RAZORPAY setl_sp_12 UTR2608SP0012",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
     },
     {
       "id": "bank_setl_12_dup",
@@ -2052,7 +2252,38 @@
       "amountPaise": 1242737,
       "utr": "UTR2608SP0012",
       "narration": "NEFT RAZORPAY setl_sp_12 UTR2608SP0012 DUPLICATE",
-      "kind": "settlement"
+      "kind": "settlement",
+      "currency": "INR"
+    },
+    {
+      "id": "bank_refund_01",
+      "postedAt": "2026-08-30",
+      "direction": "debit",
+      "amountPaise": 37500,
+      "utr": "UTR2608SP0010",
+      "narration": "REFUND gw_adj_01 UTR2608SP0010",
+      "kind": "operating",
+      "currency": "INR"
+    },
+    {
+      "id": "bank_refund_02",
+      "postedAt": "2026-08-30",
+      "direction": "debit",
+      "amountPaise": 41250,
+      "utr": "UTR2608SP0010",
+      "narration": "REFUND gw_adj_03 UTR2608SP0010",
+      "kind": "operating",
+      "currency": "INR"
+    },
+    {
+      "id": "bank_refund_03",
+      "postedAt": "2026-08-30",
+      "direction": "debit",
+      "amountPaise": 63000,
+      "utr": "UTR2608SP0010",
+      "narration": "REFUND gw_adj_05 UTR2608SP0010",
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_01",
@@ -2061,7 +2292,8 @@
       "amountPaise": 45500,
       "utr": null,
       "narration": "CUSTOMER NEFT 001",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_02",
@@ -2070,7 +2302,8 @@
       "amountPaise": 51800,
       "utr": null,
       "narration": "OPERATING PAYMENT 002",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_03",
@@ -2079,7 +2312,8 @@
       "amountPaise": 59000,
       "utr": null,
       "narration": "OPERATING PAYMENT 003",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_04",
@@ -2088,7 +2322,8 @@
       "amountPaise": 68900,
       "utr": null,
       "narration": "CUSTOMER NEFT 004",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_05",
@@ -2097,7 +2332,8 @@
       "amountPaise": 75400,
       "utr": null,
       "narration": "OPERATING PAYMENT 005",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_06",
@@ -2106,7 +2342,8 @@
       "amountPaise": 84100,
       "utr": null,
       "narration": "OPERATING PAYMENT 006",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_07",
@@ -2115,7 +2352,8 @@
       "amountPaise": 94300,
       "utr": null,
       "narration": "CUSTOMER NEFT 007",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_08",
@@ -2124,7 +2362,8 @@
       "amountPaise": 102100,
       "utr": null,
       "narration": "OPERATING PAYMENT 008",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_09",
@@ -2133,7 +2372,8 @@
       "amountPaise": 108500,
       "utr": null,
       "narration": "OPERATING PAYMENT 009",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_10",
@@ -2142,7 +2382,8 @@
       "amountPaise": 119500,
       "utr": null,
       "narration": "CUSTOMER NEFT 010",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_11",
@@ -2151,7 +2392,8 @@
       "amountPaise": 128400,
       "utr": null,
       "narration": "OPERATING PAYMENT 011",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_12",
@@ -2160,7 +2402,8 @@
       "amountPaise": 135200,
       "utr": null,
       "narration": "OPERATING PAYMENT 012",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_13",
@@ -2169,7 +2412,8 @@
       "amountPaise": 144200,
       "utr": null,
       "narration": "CUSTOMER NEFT 013",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_14",
@@ -2178,7 +2422,8 @@
       "amountPaise": 151300,
       "utr": null,
       "narration": "OPERATING PAYMENT 014",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_15",
@@ -2187,7 +2432,8 @@
       "amountPaise": 160600,
       "utr": null,
       "narration": "OPERATING PAYMENT 015",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_16",
@@ -2196,7 +2442,8 @@
       "amountPaise": 168700,
       "utr": null,
       "narration": "CUSTOMER NEFT 016",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_17",
@@ -2205,7 +2452,8 @@
       "amountPaise": 175700,
       "utr": null,
       "narration": "OPERATING PAYMENT 017",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_18",
@@ -2214,7 +2462,8 @@
       "amountPaise": 183400,
       "utr": null,
       "narration": "PAYROLL VENDOR · instruction-like text is untrusted data",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_19",
@@ -2223,7 +2472,8 @@
       "amountPaise": 193800,
       "utr": null,
       "narration": "CUSTOMER NEFT 019",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_20",
@@ -2232,7 +2482,8 @@
       "amountPaise": 202500,
       "utr": null,
       "narration": "OPERATING PAYMENT 020",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_21",
@@ -2241,7 +2492,8 @@
       "amountPaise": 211300,
       "utr": null,
       "narration": "OPERATING PAYMENT 021",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_22",
@@ -2250,7 +2502,8 @@
       "amountPaise": 219100,
       "utr": null,
       "narration": "CUSTOMER NEFT 022",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_23",
@@ -2259,7 +2512,8 @@
       "amountPaise": 226200,
       "utr": null,
       "narration": "OPERATING PAYMENT 023",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_24",
@@ -2268,7 +2522,8 @@
       "amountPaise": 236300,
       "utr": null,
       "narration": "OPERATING PAYMENT 024",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_25",
@@ -2277,7 +2532,8 @@
       "amountPaise": 244200,
       "utr": null,
       "narration": "CUSTOMER NEFT 025",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_26",
@@ -2286,7 +2542,8 @@
       "amountPaise": 250900,
       "utr": null,
       "narration": "OPERATING PAYMENT 026",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_27",
@@ -2295,7 +2552,8 @@
       "amountPaise": 259700,
       "utr": null,
       "narration": "OPERATING PAYMENT 027",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_28",
@@ -2304,7 +2562,8 @@
       "amountPaise": 268200,
       "utr": null,
       "narration": "CUSTOMER NEFT 028",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_29",
@@ -2313,7 +2572,8 @@
       "amountPaise": 277200,
       "utr": null,
       "narration": "OPERATING PAYMENT 029",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     },
     {
       "id": "bank_ops_30",
@@ -2322,7 +2582,8 @@
       "amountPaise": 285200,
       "utr": null,
       "narration": "OPERATING PAYMENT 030",
-      "kind": "operating"
+      "kind": "operating",
+      "currency": "INR"
     }
   ]
 }

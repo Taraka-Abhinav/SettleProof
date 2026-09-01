@@ -167,12 +167,13 @@
 {"source":"gateway","rowId":"gw_082_dup","disposition":"exception-evidence","targetId":"target_082"}
 {"source":"gateway","rowId":"gw_083","disposition":"exception-evidence","targetId":"target_083"}
 {"source":"gateway","rowId":"gw_084","disposition":"exception-evidence","targetId":"target_084"}
-{"source":"gateway","rowId":"gw_adj_01","disposition":"exception-support","targetId":null}
+{"source":"gateway","rowId":"gw_adj_01","disposition":"matched-evidence","targetId":null}
 {"source":"gateway","rowId":"gw_adj_02","disposition":"exception-support","targetId":null}
-{"source":"gateway","rowId":"gw_adj_03","disposition":"exception-support","targetId":null}
+{"source":"gateway","rowId":"gw_adj_03","disposition":"matched-evidence","targetId":null}
 {"source":"gateway","rowId":"gw_adj_04","disposition":"exception-support","targetId":null}
-{"source":"gateway","rowId":"gw_adj_05","disposition":"exception-support","targetId":null}
+{"source":"gateway","rowId":"gw_adj_05","disposition":"matched-evidence","targetId":null}
 {"source":"gateway","rowId":"gw_adj_06","disposition":"exception-support","targetId":null}
+{"source":"gateway","rowId":"REF-1059","disposition":"exception-evidence","targetId":null}
 {"source":"bank","rowId":"bank_setl_01","disposition":"matched-evidence","targetId":"target_009"}
 {"source":"bank","rowId":"bank_setl_02","disposition":"matched-evidence","targetId":"target_018"}
 {"source":"bank","rowId":"bank_setl_03","disposition":"matched-evidence","targetId":"target_027"}
@@ -185,6 +186,9 @@
 {"source":"bank","rowId":"bank_setl_10","disposition":"exception-support","targetId":null}
 {"source":"bank","rowId":"bank_setl_12","disposition":"exception-evidence","targetId":"target_084"}
 {"source":"bank","rowId":"bank_setl_12_dup","disposition":"exception-evidence","targetId":"target_084"}
+{"source":"bank","rowId":"bank_refund_01","disposition":"matched-evidence","targetId":null}
+{"source":"bank","rowId":"bank_refund_02","disposition":"matched-evidence","targetId":null}
+{"source":"bank","rowId":"bank_refund_03","disposition":"matched-evidence","targetId":null}
 {"source":"bank","rowId":"bank_ops_01","disposition":"operating-movement","targetId":null}
 {"source":"bank","rowId":"bank_ops_02","disposition":"operating-movement","targetId":null}
 {"source":"bank","rowId":"bank_ops_03","disposition":"operating-movement","targetId":null}
