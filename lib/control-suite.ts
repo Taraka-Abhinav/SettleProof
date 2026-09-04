@@ -61,6 +61,15 @@ const outcome = (run: ReturnType<typeof runImportedClose>) =>
       }))
       .sort((a, b) => a.ledgerRowId.localeCompare(b.ledgerRowId)),
     journals: run.journals.map((item) => item.id).sort(),
+    independentDebits: [...run.refundChecks, ...run.chargebackChecks]
+      .map((item) => ({
+        transactionId: item.transactionId,
+        status: item.status,
+        type: item.type,
+        bankRowIds: [...item.bankRowIds].sort(),
+      }))
+      .sort((a, b) => a.transactionId.localeCompare(b.transactionId)),
+    debitJournals: run.debitJournals.map((item) => item.id).sort(),
   });
 
 export function runAdversarialControlSuite() {
@@ -273,6 +282,67 @@ export function runAdversarialControlSuite() {
   }
 
   {
+    const input = baseInput();
+    const settlementCredit = input.bank.find((row) => row.id === 'bank_setl_01')!;
+    input.bank.push({
+      ...settlementCredit,
+      id: 'attack_settlement_reversal',
+      direction: 'debit',
+      narration: 'SETTLEMENT REVERSAL setl_sp_01',
+      kind: 'operating',
+    });
+    const run = runImportedClose(input, options);
+    const passed =
+      noJournal(run, 'setl_sp_01') &&
+      run.certificate.status === 'BLOCKED' &&
+      run.exceptions.some(
+        (item) =>
+          item.rowId === 'attack_settlement_reversal' &&
+          item.reasonCode === 'UNEXPLAINED_BANK_DEBIT',
+      );
+    cases.push(
+      result(
+        'SETTLEMENT_REVERSAL_DEBIT',
+        'A settlement reversal suppresses the original journal',
+        'Add a debit carrying a verified settlement UTR',
+        passed,
+        passed ? 'The reversal was listed and the settlement journal was suppressed.' : 'The original settlement remained postable after reversal.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
+    input.bank.push({
+      id: 'attack_orphan_refund_debit',
+      postedAt: '2026-08-31',
+      direction: 'debit',
+      amountPaise: 55_500,
+      utr: 'UTR-ORPHAN-REFUND',
+      narration: 'REFUND UNKNOWN CUSTOMER',
+      kind: 'operating',
+      currency: 'INR',
+    });
+    const run = runImportedClose(input, options);
+    const passed =
+      run.certificate.status === 'BLOCKED' &&
+      run.exceptions.some(
+        (item) =>
+          item.rowId === 'attack_orphan_refund_debit' &&
+          item.reasonCode === 'UNEXPLAINED_BANK_DEBIT',
+      );
+    cases.push(
+      result(
+        'ORPHAN_REFUND_BANK_DEBIT',
+        'Refund-like bank debits require a gateway event',
+        'Add a refund-labelled debit with no gateway refund',
+        passed,
+        passed ? 'The orphan debit entered the honest exception list.' : 'The orphan refund debit was treated as ordinary operating cash.',
+      ),
+    );
+  }
+
+  {
     const ledger: LedgerRow[] = [
       { id: 'L1', orderId: 'O1', receipt: '', bookedAt: '2026-08-30', customer: 'A', amountPaise: 10_000, settlementId: 'S1', currency: 'INR' },
       { id: 'L2', orderId: 'O2', receipt: '', bookedAt: '2026-08-30', customer: 'B', amountPaise: 10_000, settlementId: 'S2', currency: 'INR' },
@@ -407,6 +477,188 @@ export function runAdversarialControlSuite() {
 
   {
     const input = baseInput();
+    input.bank.find((row) => row.id === 'bank_refund_01')!.postedAt = '2026-08-29';
+    const run = runImportedClose(input, options);
+    const refundCheck = run.refundChecks.find(
+      (item) => item.transactionId === 'gw_adj_01',
+    );
+    const passed =
+      refundCheck?.status === 'exception' &&
+      !run.debitJournals.some(
+        (journal) => journal.transactionId === 'gw_adj_01',
+      );
+    cases.push(
+      result(
+        'REFUND_PRE_EVENT_DEBIT',
+        'Refund evidence cannot predate the gateway event',
+        'Move the bank debit one day before the refund',
+        passed,
+        passed ? 'The pre-event debit was rejected and the refund stayed held.' : 'Older cash evidence was accepted for a later refund.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
+    const refundDebit = input.bank.find((row) => row.id === 'bank_refund_01')!;
+    input.bank.push({ ...refundDebit, id: 'attack_duplicate_refund_debit' });
+    const run = runImportedClose(input, options);
+    const passed = run.exceptions.some(
+      (item) =>
+        item.transactionId === 'gw_adj_01' &&
+        item.type === 'refund_duplicate_bank_debit',
+    );
+    cases.push(
+      result(
+        'REFUND_DUPLICATE_BANK_DEBIT',
+        'One refund cannot choose between duplicate bank debits',
+        'Duplicate a refund debit under a fresh bank row ID',
+        passed,
+        passed ? 'Both bank candidates were quarantined.' : 'The allocator selected the first duplicate debit.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
+    const chargeback = input.gateway.find((row) => row.id === 'CHB-1042')!;
+    input.gateway.push({
+      ...chargeback,
+      id: 'attack_cross_kind_refund',
+      type: 'refund',
+      orderId: null,
+      description: 'Competing refund claim',
+      createdAt: '2026-08-29',
+    });
+    const run = runImportedClose(input, options);
+    const passed =
+      run.exceptions.some(
+        (item) =>
+          item.transactionId === 'CHB-1042' &&
+          item.type === 'chargeback_bank_evidence_reused',
+      ) &&
+      run.exceptions.some(
+        (item) =>
+          item.transactionId === 'attack_cross_kind_refund' &&
+          item.type === 'refund_bank_evidence_reused',
+      );
+    cases.push(
+      result(
+        'CROSS_KIND_DEBIT_REUSE',
+        'Refunds and chargebacks share one global debit allocator',
+        'Claim one bank debit from both a refund and chargeback',
+        passed,
+        passed ? 'Both event claims were held; the bank debit was not reused.' : 'One independent event reused another event’s bank evidence.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
+    const payment = input.gateway.find((row) => row.id === 'gw_001')!;
+    const refundAmount = Math.floor(payment.creditPaise * 0.6);
+    for (const [index, suffix] of ['A', 'B'].entries()) {
+      input.gateway.push({
+        ...payment,
+        id: `attack_over_refund_${suffix}`,
+        type: 'refund',
+        description: `Over-refund ${suffix}`,
+        createdAt: index === 0 ? '2026-08-29' : '2026-08-30',
+        settlementUtr: `UTR-OVER-${suffix}`,
+        creditPaise: 0,
+        debitPaise: refundAmount,
+        feePaise: 0,
+        taxPaise: 0,
+      });
+      input.bank.push({
+        id: `bank_over_refund_${suffix}`,
+        postedAt: index === 0 ? '2026-08-29' : '2026-08-30',
+        direction: 'debit',
+        amountPaise: refundAmount,
+        utr: `UTR-OVER-${suffix}`,
+        narration: `REFUND ${payment.orderId}`,
+        kind: 'operating',
+        currency: 'INR',
+      });
+    }
+    const run = runImportedClose(input, options);
+    const overRefunds = run.exceptions.filter(
+      (item) => item.type === 'refund_exceeds_original_payment',
+    );
+    const passed = overRefunds.length === 2;
+    cases.push(
+      result(
+        'CUMULATIVE_OVER_REFUND',
+        'Cumulative refunds cannot exceed the original payment',
+        'Create two 60% refunds with otherwise valid bank debits',
+        passed,
+        passed ? 'Both refunds were held as one cumulative economic breach.' : 'Over-refunding remained posting-ready.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
+    input.bank = input.bank.filter((row) => row.id !== 'bank_chargeback_01');
+    const run = runImportedClose(input, options);
+    const passed = run.exceptions.some(
+      (item) =>
+        item.transactionId === 'CHB-1042' &&
+        item.type === 'chargeback_missing_bank_debit',
+    );
+    cases.push(
+      result(
+        'CHARGEBACK_MISSING_BANK_DEBIT',
+        'Chargebacks require independent bank evidence',
+        'Delete the chargeback bank debit',
+        passed,
+        passed ? 'The chargeback entered the exception queue.' : 'A chargeback closed without cash evidence.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
+    input.bank.find((row) => row.id === 'bank_chargeback_01')!.amountPaise += 1;
+    const run = runImportedClose(input, options);
+    const passed = run.exceptions.some(
+      (item) =>
+        item.transactionId === 'CHB-1042' &&
+        item.type === 'chargeback_amount_mismatch',
+    );
+    cases.push(
+      result(
+        'CHARGEBACK_AMOUNT_MISMATCH',
+        'Chargeback bank debits match exact paise',
+        'Increase the chargeback debit by ₹0.01',
+        passed,
+        passed ? 'The one-paise chargeback variance was held.' : 'The amount variance escaped.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
+    input.bank.find((row) => row.id === 'bank_chargeback_01')!.utr = 'WRONG-CHARGEBACK-UTR';
+    const run = runImportedClose(input, options);
+    const passed = run.exceptions.some(
+      (item) =>
+        item.transactionId === 'CHB-1042' &&
+        item.type === 'chargeback_utr_mismatch',
+    );
+    cases.push(
+      result(
+        'CHARGEBACK_UTR_MISMATCH',
+        'Chargeback UTR lineage is independently verified',
+        'Alter the chargeback bank debit UTR',
+        passed,
+        passed ? 'The wrong chargeback UTR was quarantined.' : 'A wrong chargeback UTR remained clean.',
+      ),
+    );
+  }
+
+  {
+    const input = baseInput();
     input.gateway.push({
       id: 'attack_orphan_adjustment',
       type: 'adjustment',
@@ -527,9 +779,9 @@ export function runAdversarialControlSuite() {
     total: cases.length,
     passed: cases.filter((item) => item.passed).length,
     failed: cases.filter((item) => !item.passed).length,
-    unsafeWrites: cases.filter((item) => !item.passed).length,
+    unsafeWrites: cases.every((item) => item.passed) ? 0 : null,
     cases,
     disclosure:
-      'These are deterministic control-conformance attacks, not production accuracy claims.',
+      'These are deterministic control-conformance attacks, not production accuracy claims. A failed assertion is reported as a failed control, not automatically relabeled as an observed unsafe write.',
   };
 }

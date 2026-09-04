@@ -10,7 +10,7 @@
 
 **Action:** click **Use your data**, then **Load example raw files**.
 
-“This is not an upload façade. SettleProof serializes three finance exports and sends all 221 rows through the same browser-local parser available for merchant CSV or JSON files. Here are the detected mappings, source hashes, control totals, cutoff date, and zero silently dropped rows. The files never leave this session.”
+“This is not an upload façade. SettleProof serializes three finance exports and sends all 223 rows through the same browser-local parser available for merchant CSV or JSON files. Here are the detected mappings, raw-byte hashes, control totals, cutoff date, and zero silently dropped rows. The files never leave this session.”
 
 **Action:** continue through **Map**, **Validate**, and **Run verified close**.
 
@@ -20,11 +20,11 @@
 
 **On screen:** source flow and seed.
 
-“This is a deterministic synthetic batch: 84 ERP rows, 92 gateway recon rows, and 45 bank rows—221 source rows and 84 end-to-end targets. It contains fees, tax, independently reconciled refunds, timing drift, noisy references, same-value hard negatives, missing bank cash, and duplicated events.”
+“This is a deterministic synthetic batch: 84 ERP rows, 93 gateway recon rows, and 46 bank rows—223 source rows and 84 end-to-end targets. It contains fees, tax, separately funded refunds, a verified chargeback, timing drift, noisy references, same-value hard negatives, missing bank cash, and duplicated events.”
 
 ## 1:25–1:45 — Run the close
 
-**Action:** click **Replay 221-row close**.
+**Action:** click **Replay 223-row close**.
 
 “The agent profiles sources, generates candidates, verifies money invariants, and posts only balanced journals. Twelve messy narrations need AI interpretation. The model can propose a reference, but it never performs arithmetic and never owns the write gate.”
 
@@ -50,19 +50,19 @@
 
 **On screen:** cash position and four verifier checks.
 
-“For the safe subset, SettleProof creates nine idempotent journals that balance to the paise and updates opening cash, verified settlements, other bank movements, closing cash, confirmed cash in transit, and duplicate-credit value under review. The certificate proves record, settlement, bank, and ledger conservation.”
+“For the safe subset, SettleProof creates nine settlement journals and four independent refund/chargeback debit journals. The visible equation includes every bank movement and lands at a zero bridge delta. Nine certificate invariants prove record, settlement, bank, ledger, debit-journal, cutoff, refund, and chargeback conservation.”
 
 ## 3:50–4:20 — Show the agent contribution
 
 **Action:** open **Benchmark & audit**.
 
-“Rules and normalized constraints safely close 78.6%. The verified narration layer adds 14.3 points, reaching 92.9% without lowering precision. A 25-seed regression varies values and operating noise with the same scenario grammar, and a 50,127-row stress replay measures throughput. I am not presenting this as held-out model generalization.”
+“Rules and normalized constraints safely close 75.0%. The verified narration layer adds 17.9 points, reaching 92.9% without lowering precision. A 100-seed regression covers 22,300 source rows, a 50,175-row full-loop replay measures throughput, and 28 adversarial finance attacks all fail closed. I am not presenting this as held-out model generalization.”
 
 ## 4:20–4:45 — Machine-readable evidence
 
-**Action:** click **Export proof packet**.
+**Action:** click **Export redacted proof**.
 
-“An AI reviewer does not need to trust this video. The repository includes the frozen synthetic batch, separate ground truth, metric formulas, every match as JSONL, the full exception CSV, source and engine hashes, benchmark output, and the close certificate.”
+“An AI reviewer does not need to trust this video. The default export is allowlisted and pseudonymized—no filenames, row IDs, order IDs, UTRs, narrations, or model text. The optional full packet is AES-256-GCM encrypted in the browser with authenticated metadata. The repository also ships the frozen batch, separate truth, every match, every exception, independent-debit proof, hashes, benchmark, and certificate.”
 
 ## 4:45–5:00 — Honest ending
 

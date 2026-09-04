@@ -36,10 +36,11 @@ export interface ImportBundle {
 }
 
 export interface ImportManifest {
-  schemaVersion: '1.0';
+  schemaVersion: '1.1';
   mode: 'browser-local-import';
   createdAt: string;
   inputSha256: string;
+  manifestSha256: string;
   cutoffDate: string;
   openingCashPaise: number;
   currency: 'INR';
@@ -71,6 +72,8 @@ interface FieldSpec {
 }
 
 const MAX_ROWS = 10_000;
+const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
+const MAX_PACK_BYTES = 25 * 1024 * 1024;
 
 const schemas: Record<ImportSource, FieldSpec[]> = {
   ledger: [
@@ -264,12 +267,24 @@ function csvRecords(text: string) {
   return { records, headers, issues };
 }
 
-function jsonRecords(source: ImportSource, text: string) {
-  const issues: ImportIssue[] = [];
-  let value: unknown;
+type ParsedJsonDocument =
+  | { ok: true; value: unknown }
+  | { ok: false };
+
+function parseJsonDocument(text: string): ParsedJsonDocument {
   try {
-    value = JSON.parse(text.replace(/^\uFEFF/, ''));
+    return { ok: true, value: JSON.parse(text.replace(/^\uFEFF/, '')) };
   } catch {
+    return { ok: false };
+  }
+}
+
+function jsonRecordsFromValue(
+  source: ImportSource,
+  document: ParsedJsonDocument,
+) {
+  const issues: ImportIssue[] = [];
+  if (!document.ok) {
     return {
       records: [] as RawRecord[],
       headers: [] as string[],
@@ -278,6 +293,7 @@ function jsonRecords(source: ImportSource, text: string) {
       ],
     };
   }
+  const value = document.value;
   const rows = Array.isArray(value)
     ? value
     : value && typeof value === 'object'
@@ -533,8 +549,8 @@ function normalizeRows(
       } satisfies LedgerRow;
     } else if (source === 'gateway') {
       const type = cell(record, mapping, 'type').toLowerCase();
-      if (!['payment', 'refund', 'adjustment'].includes(type)) {
-        issues.push({ severity: 'error', code: 'INVALID_TYPE', message: 'type must be payment, refund, or adjustment.', row: record.row, field: 'type' });
+      if (!['payment', 'refund', 'chargeback', 'adjustment'].includes(type)) {
+        issues.push({ severity: 'error', code: 'INVALID_TYPE', message: 'type must be payment, refund, chargeback, or adjustment.', row: record.row, field: 'type' });
       }
       const orderId = textValue(cell(record, mapping, 'orderId'), source, record, 'orderId', issues);
       const description = textValue(cell(record, mapping, 'description'), source, record, 'description', issues);
@@ -547,6 +563,15 @@ function normalizeRows(
       const taxPaise = moneyValue(record, mapping, 'taxPaise', issues);
       if (creditPaise === 0 && debitPaise === 0) {
         issues.push({ severity: 'error', code: 'ZERO_GATEWAY_ROW', message: 'Gateway credit and debit cannot both be zero.', row: record.row });
+      }
+      if (type === 'payment' && creditPaise === 0) {
+        issues.push({ severity: 'error', code: 'INVALID_PAYMENT_POLARITY', message: 'Payment rows require a positive gateway credit.', row: record.row });
+      }
+      if (
+        (type === 'refund' || type === 'chargeback') &&
+        (debitPaise === 0 || creditPaise !== 0)
+      ) {
+        issues.push({ severity: 'error', code: 'INVALID_DEBIT_EVENT_POLARITY', message: 'Refund and chargeback rows require a positive debit and zero credit.', row: record.row });
       }
       if (
         !Number.isSafeInteger(feePaise + taxPaise) ||
@@ -601,24 +626,32 @@ function normalizeRows(
   return { rows, issues };
 }
 
-export async function sha256Hex(value: string) {
-  const bytes = new TextEncoder().encode(value);
+export async function sha256Bytes(bytes: BufferSource) {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
 }
 
-export async function parseSourceText(
+export async function sha256Hex(value: string) {
+  return sha256Bytes(new TextEncoder().encode(value));
+}
+
+async function parseDecodedSource(
   source: ImportSource,
   fileName: string,
   text: string,
+  sourceSha256: string,
+  parsedJson?: ParsedJsonDocument,
 ): Promise<SourceImportResult> {
   const trimmed = text.replace(/^\uFEFF/, '').trimStart();
   const format = fileName.toLowerCase().endsWith('.json') || trimmed.startsWith('[') || trimmed.startsWith('{')
     ? 'json'
     : 'csv';
-  const parsed = format === 'json' ? jsonRecords(source, text) : csvRecords(text);
+  const parsed =
+    format === 'json'
+      ? jsonRecordsFromValue(source, parsedJson ?? parseJsonDocument(text))
+      : csvRecords(text);
   const detected = detectMapping(source, parsed.headers);
   const normalized = normalizeRows(source, parsed.records, detected.mapping);
   const issues = [...parsed.issues, ...detected.issues, ...normalized.issues];
@@ -685,16 +718,74 @@ export async function parseSourceText(
     mapping: detected.mapping,
     issues,
     controlTotalPaise,
-    sha256: await sha256Hex(text),
+    sha256: sourceSha256,
   };
 }
 
-export async function parseBatchPack(fileName: string, text: string): Promise<ImportBundle> {
+function normalizedBytes(
+  bytes: ArrayBuffer | Uint8Array,
+): Uint8Array<ArrayBuffer> {
+  return bytes instanceof Uint8Array
+    ? new Uint8Array(bytes)
+    : new Uint8Array(bytes);
+}
+
+function decodeUtf8(bytes: Uint8Array) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new TypeError('File is not valid UTF-8.');
+  }
+}
+
+export async function parseSourceBytes(
+  source: ImportSource,
+  fileName: string,
+  inputBytes: ArrayBuffer | Uint8Array,
+): Promise<SourceImportResult> {
+  const bytes = normalizedBytes(inputBytes);
+  if (bytes.byteLength > MAX_SOURCE_BYTES) {
+    throw new RangeError('File exceeds the 10 MB per-source limit.');
+  }
+  const digest = await sha256Bytes(bytes);
+  return parseDecodedSource(source, fileName, decodeUtf8(bytes), digest);
+}
+
+export async function parseSourceText(
+  source: ImportSource,
+  fileName: string,
+  text: string,
+): Promise<SourceImportResult> {
+  return parseSourceBytes(source, fileName, new TextEncoder().encode(text));
+}
+
+async function parseDecodedBatchPack(
+  fileName: string,
+  text: string,
+  sourceSha256: string,
+): Promise<ImportBundle> {
+  const parsedJson = parseJsonDocument(text);
   return {
-    ledger: await parseSourceText('ledger', fileName, text),
-    gateway: await parseSourceText('gateway', fileName, text),
-    bank: await parseSourceText('bank', fileName, text),
+    ledger: await parseDecodedSource('ledger', fileName, text, sourceSha256, parsedJson),
+    gateway: await parseDecodedSource('gateway', fileName, text, sourceSha256, parsedJson),
+    bank: await parseDecodedSource('bank', fileName, text, sourceSha256, parsedJson),
   };
+}
+
+export async function parseBatchPackBytes(
+  fileName: string,
+  inputBytes: ArrayBuffer | Uint8Array,
+) {
+  const bytes = normalizedBytes(inputBytes);
+  if (bytes.byteLength > MAX_PACK_BYTES) {
+    throw new RangeError('JSON pack exceeds the 25 MB limit.');
+  }
+  const digest = await sha256Bytes(bytes);
+  return parseDecodedBatchPack(fileName, decodeUtf8(bytes), digest);
+}
+
+export async function parseBatchPack(fileName: string, text: string) {
+  return parseBatchPackBytes(fileName, new TextEncoder().encode(text));
 }
 
 function csvCell(value: unknown) {
@@ -756,28 +847,50 @@ export async function buildImportManifest(
   const acceptedRows = sources.reduce((sum, source) => sum + source.rows.length, 0);
   const sourceRows = sources.reduce((sum, source) => sum + source.rawRowCount, 0);
   const canonical = importInput(bundle);
-  return {
-    schemaVersion: '1.0',
-    mode: 'browser-local-import',
-    createdAt: new Date().toISOString(),
-    inputSha256: await sha256Hex(JSON.stringify(canonical)),
+  const canonicalJson = (value: unknown): string => {
+    const normalize = (item: unknown): unknown => {
+      if (Array.isArray(item)) return item.map(normalize);
+      if (item && typeof item === 'object') {
+        return Object.fromEntries(
+          Object.entries(item as Record<string, unknown>)
+            .filter(([, entry]) => entry !== undefined)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, entry]) => [key, normalize(entry)]),
+        );
+      }
+      return item;
+    };
+    return JSON.stringify(normalize(value));
+  };
+  const createdAt = new Date().toISOString();
+  const inputSha256 = await sha256Hex(canonicalJson(canonical));
+  const sourceManifest = sources.map((source) => ({
+    source: source.source,
+    fileName: source.fileName,
+    sha256: source.sha256,
+    rawRows: source.rawRowCount,
+    acceptedRows: source.rows.length,
+    controlTotalPaise: source.controlTotalPaise,
+    mapping: source.mapping,
+  }));
+  const manifestBody = {
+    schemaVersion: '1.1' as const,
+    mode: 'browser-local-import' as const,
+    createdAt,
+    inputSha256,
     cutoffDate,
     openingCashPaise,
-    currency: 'INR',
+    currency: 'INR' as const,
     sourceRows,
     acceptedRows,
     rejectedRows: sourceRows - acceptedRows,
     errors: issues.filter((issue) => issue.severity === 'error').length,
     warnings: issues.filter((issue) => issue.severity === 'warning').length,
-    sources: sources.map((source) => ({
-      source: source.source,
-      fileName: source.fileName,
-      sha256: source.sha256,
-      rawRows: source.rawRowCount,
-      acceptedRows: source.rows.length,
-      controlTotalPaise: source.controlTotalPaise,
-      mapping: source.mapping,
-    })),
+    sources: sourceManifest,
+  };
+  return {
+    ...manifestBody,
+    manifestSha256: await sha256Hex(canonicalJson(manifestBody)),
   };
 }
 

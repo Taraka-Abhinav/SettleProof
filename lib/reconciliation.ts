@@ -18,18 +18,39 @@ export type ExceptionCode =
   | 'BANK_CLASSIFICATION_CONFLICT'
   | 'BANK_EVIDENCE_REUSED'
   | 'SETTLEMENT_INCOMPLETE'
+  | 'DUPLICATE_SOURCE_EVENT'
   | 'ROW_ALREADY_ASSIGNED';
 
 export type SourceExceptionCode =
   | 'ORPHAN_GATEWAY_PAYMENT'
   | 'ORPHAN_SETTLEMENT_COMPONENT'
   | 'UNEXPLAINED_BANK_SETTLEMENT'
+  | 'UNEXPLAINED_BANK_DEBIT'
+  | 'DUPLICATE_SOURCE_EVENT'
   | 'UNCLASSIFIED_SOURCE_ROW';
 
 export type RefundExceptionType =
   | 'refund_missing_bank_debit'
   | 'refund_amount_mismatch'
-  | 'refund_utr_mismatch';
+  | 'refund_utr_mismatch'
+  | 'refund_date_out_of_policy'
+  | 'refund_duplicate_bank_debit'
+  | 'refund_bank_evidence_reused'
+  | 'refund_duplicate_event'
+  | 'refund_exceeds_original_payment';
+
+export type ChargebackExceptionType =
+  | 'chargeback_missing_bank_debit'
+  | 'chargeback_amount_mismatch'
+  | 'chargeback_utr_mismatch'
+  | 'chargeback_date_out_of_policy'
+  | 'chargeback_duplicate_bank_debit'
+  | 'chargeback_bank_evidence_reused'
+  | 'chargeback_duplicate_event';
+
+export type IndependentDebitExceptionType =
+  | RefundExceptionType
+  | ChargebackExceptionType;
 
 export interface LedgerRow {
   id: string;
@@ -44,7 +65,7 @@ export interface LedgerRow {
 
 export interface GatewayRow {
   id: string;
-  type: 'payment' | 'refund' | 'adjustment';
+  type: 'payment' | 'refund' | 'adjustment' | 'chargeback';
   orderId: string | null;
   description: string;
   createdAt: string;
@@ -146,6 +167,9 @@ interface EvaluationMetricsBase {
   refundChecks: number;
   refundMatches: number;
   refundExceptions: number;
+  chargebackChecks: number;
+  chargebackMatches: number;
+  chargebackExceptions: number;
   durationMs: number;
   rowsPerSecond: number;
 }
@@ -191,7 +215,11 @@ export interface CloseException {
   settlementId: string | null;
   orderId: string | null;
   amountPaise: number;
-  reasonCode: ExceptionCode | SourceExceptionCode | RefundExceptionType;
+  reasonCode:
+    | ExceptionCode
+    | SourceExceptionCode
+    | RefundExceptionType
+    | ChargebackExceptionType;
   materiality: 'high' | 'medium' | 'low';
   title: string;
   explanation: string;
@@ -199,12 +227,13 @@ export interface CloseException {
   nextAction: string;
   ownerQueue: 'Finance Ops' | 'Payments Ops' | 'Treasury';
   sla: 'Immediate' | 'Same day' | 'Next bank cycle';
-  type?: RefundExceptionType;
+  type?: IndependentDebitExceptionType;
   transactionId?: string;
   settlementUtr?: string;
 }
 
 export interface RefundCheck {
+  kind: 'refund';
   gatewayRowId: string;
   transactionId: string;
   orderId: string | null;
@@ -212,14 +241,44 @@ export interface RefundCheck {
   amountPaise: number;
   status: 'matched' | 'exception';
   bankRowId: string | null;
+  bankRowIds: string[];
   type: RefundExceptionType | null;
   explanation: string;
+}
+
+export interface ChargebackCheck {
+  kind: 'chargeback';
+  gatewayRowId: string;
+  transactionId: string;
+  orderId: string | null;
+  settlementUtr: string;
+  amountPaise: number;
+  status: 'matched' | 'exception';
+  bankRowId: string | null;
+  bankRowIds: string[];
+  type: ChargebackExceptionType | null;
+  explanation: string;
+}
+
+export type IndependentDebitCheck = RefundCheck | ChargebackCheck;
+
+export interface IndependentDebitJournal {
+  id: string;
+  transactionId: string;
+  kind: 'refund' | 'chargeback';
+  status: 'posting-ready';
+  lines: JournalLine[];
+  debitPaise: number;
+  creditPaise: number;
+  balanced: boolean;
+  bankRowId: string;
 }
 
 export interface CashPosition {
   openingPaise: number;
   verifiedSettlementsPaise: number;
   verifiedRefundDebitsPaise: number;
+  verifiedChargebackDebitsPaise: number;
   otherBankMovementPaise: number;
   unresolvedBankMovementPaise: number;
   closingBankPaise: number;
@@ -240,6 +299,7 @@ export interface CloseCertificate {
   status: 'READY_TO_POST' | 'READY_WITH_EXCEPTIONS' | 'BLOCKED';
   issuedAt: string;
   inputFingerprint: string;
+  sourceManifestSha256: string | null;
   policyVersion: string;
   agentMode: string;
   invariants: CloseInvariant[];
@@ -267,8 +327,10 @@ export interface CloseRun<
   batch: SyntheticBatch;
   decisions: ReconciliationDecision[];
   refundChecks: RefundCheck[];
+  chargebackChecks: ChargebackCheck[];
   exceptions: CloseException[];
   journals: SettlementJournal[];
+  debitJournals: IndependentDebitJournal[];
   metrics: Metrics;
   cash: CashPosition;
   certificate: CloseCertificate;
@@ -281,6 +343,7 @@ export interface ClosePolicy {
   issuedAt: string;
   policyVersion: string;
   agentMode: string;
+  sourceManifestSha256?: string;
   targetIdForRow?: (row: LedgerRow, index: number) => string;
 }
 
@@ -294,7 +357,7 @@ const demoPolicy: ClosePolicy = {
   cutoffDate: '2026-08-31',
   openingCashPaise: 418_263_045,
   issuedAt: '2026-08-31T10:30:02+05:30',
-  policyVersion: 'settlement-close/v1.5.0',
+  policyVersion: 'settlement-close/v1.6.0',
   agentMode: 'replayable-ai-proposals + deterministic-verifier',
 };
 
@@ -366,6 +429,11 @@ const exceptionCopy: Record<
     title: 'Settlement is not fully reconciled',
     missing: 'A unique ERP target for every payment component in the settlement.',
     next: 'Resolve the orphan or exceptional component before posting the settlement journal.',
+  },
+  DUPLICATE_SOURCE_EVENT: {
+    title: 'Duplicate settlement component detected',
+    missing: 'A unique source event or authoritative evidence identifying the valid component.',
+    next: 'Quarantine every duplicate copy and inspect source idempotency before rerunning.',
   },
   ROW_ALREADY_ASSIGNED: {
     title: 'Gateway row is already assigned',
@@ -571,10 +639,25 @@ export function generateSyntheticBatch(seed = DEMO_SEED): SyntheticBatch {
     currency: 'INR',
   });
 
+  gateway.push({
+    id: 'CHB-1042',
+    type: 'chargeback',
+    orderId: 'ORDER-1042',
+    description: 'Customer dispute chargeback for ORDER-1042',
+    createdAt: '2026-08-30',
+    settlementId: settlementId(settlementIndex(41)),
+    settlementUtr: 'UTR-CHB-1042',
+    creditPaise: 0,
+    debitPaise: ledger[41].amountPaise,
+    feePaise: 0,
+    taxPaise: 0,
+    currency: 'INR',
+  });
+
   const bank: BankRow[] = [];
   for (let group = 0; group < 12; group += 1) {
     const groupId = settlementId(group);
-    const reconRows = gateway.filter((row) => row.settlementId === groupId);
+    const reconRows = settlementFundedRows(gateway, groupId);
     const expectedNet = reconRows.reduce(
       (sum, row) => sum + row.creditPaise - row.debitPaise,
       0,
@@ -609,6 +692,18 @@ export function generateSyntheticBatch(seed = DEMO_SEED): SyntheticBatch {
         currency: 'INR',
       });
     });
+
+  const syntheticChargeback = gateway.find((row) => row.id === 'CHB-1042')!;
+  bank.push({
+    id: 'bank_chargeback_01',
+    postedAt: syntheticChargeback.createdAt,
+    direction: 'debit',
+    amountPaise: syntheticChargeback.debitPaise,
+    utr: syntheticChargeback.settlementUtr,
+    narration: `CHARGEBACK ${syntheticChargeback.orderId} ${syntheticChargeback.settlementUtr}`,
+    kind: 'operating',
+    currency: 'INR',
+  });
 
   for (let index = 0; index < 30; index += 1) {
     const direction = index % 3 === 0 ? 'credit' : 'debit';
@@ -685,8 +780,48 @@ export function assertSafeMoneyInput(
   safePaiseTotal(input.bank.map((row) => row.amountPaise), 'Bank amount total');
 }
 
+function settlementFundedRows(rows: GatewayRow[], groupId: string) {
+  return rows.filter(
+    (row) =>
+      row.settlementId === groupId &&
+      row.type !== 'refund' &&
+      row.type !== 'chargeback',
+  );
+}
+
+function settlementComponentFingerprint(row: GatewayRow) {
+  return [
+    row.type,
+    normalizeReference(row.settlementId),
+    normalizeReference(row.settlementUtr),
+    row.createdAt,
+    normalizeReference(row.orderId),
+    normalizeReference(row.description),
+    row.creditPaise,
+    row.debitPaise,
+    row.feePaise,
+    row.taxPaise,
+    row.currency,
+  ].join('|');
+}
+
+function duplicateSettlementComponentIds(rows: GatewayRow[], groupId: string) {
+  const groups = new Map<string, GatewayRow[]>();
+  settlementFundedRows(rows, groupId).forEach((row) => {
+    const fingerprint = settlementComponentFingerprint(row);
+    const group = groups.get(fingerprint) ?? [];
+    group.push(row);
+    groups.set(fingerprint, group);
+  });
+  return new Set(
+    [...groups.values()]
+      .filter((group) => group.length > 1)
+      .flatMap((group) => group.map((row) => row.id)),
+  );
+}
+
 function settlementNet(rows: GatewayRow[], groupId: string) {
-  const settlementRows = rows.filter((row) => row.settlementId === groupId);
+  const settlementRows = settlementFundedRows(rows, groupId);
   return (
     safePaiseTotal(
       settlementRows.map((row) => row.creditPaise),
@@ -704,7 +839,8 @@ function settlementIntegrity(
   groupId: string,
   cutoffDate: string,
 ) {
-  const components = rows.filter((row) => row.settlementId === groupId);
+  const components = settlementFundedRows(rows, groupId);
+  const duplicateComponentIds = duplicateSettlementComponentIds(rows, groupId);
   const normalizedUtrs = components.map((row) =>
     normalizeReference(row.settlementUtr),
   );
@@ -722,6 +858,7 @@ function settlementIntegrity(
         row.creditPaise + row.debitPaise > 0 &&
         row.feePaise + row.taxPaise <= row.debitPaise,
     ),
+    duplicateComponentIds,
   };
 }
 
@@ -986,6 +1123,29 @@ export function reconcileBatch(
       gatewayMatch.settlementId,
       cutoffDate,
     );
+    if (integrity.duplicateComponentIds.size > 0) {
+      const duplicateRows = integrity.components.filter((row) =>
+        integrity.duplicateComponentIds.has(row.id),
+      );
+      const evidenceRows = [
+        ...new Map(
+          [gatewayMatch, ...duplicateRows].map((row) => [row.id, row]),
+        ).values(),
+      ];
+      return exceptionDecision(
+        ledgerRow,
+        targetId,
+        'DUPLICATE_SOURCE_EVENT',
+        evidenceRows,
+        [],
+        `${gatewayMatch.settlementId} contains ${duplicateRows.length} source rows representing duplicate economic settlement components. Every copy is quarantined before settlement arithmetic is evaluated.`,
+        [
+          { label: 'Gateway link proven', passed: true, detail: gatewayMatch.id },
+          { label: 'Settlement components unique', passed: false, detail: `${duplicateRows.length} duplicate rows` },
+        ],
+        gatewayMatch.settlementId,
+      );
+    }
     if (!integrity.datesInPolicy) {
       return exceptionDecision(
         ledgerRow,
@@ -1218,6 +1378,9 @@ export function evaluateDecisions(
     refundChecks: 0,
     refundMatches: 0,
     refundExceptions: 0,
+    chargebackChecks: 0,
+    chargebackMatches: 0,
+    chargebackExceptions: 0,
     durationMs: safeDuration,
     rowsPerSecond: Math.round((sourceRows / safeDuration) * 1000),
   };
@@ -1354,10 +1517,14 @@ function createJournals(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
   policy: ClosePolicy,
+  independentChecks: IndependentDebitCheck[] = [],
 ): SettlementJournal[] {
   const matched = decisions.filter((item) => item.status === 'matched');
   const matchedGatewayIds = new Set(
     matched.flatMap((item) => item.gatewayRowIds),
+  );
+  const claimedIndependentBankIds = new Set(
+    independentChecks.flatMap((check) => check.bankRowIds),
   );
   const settlementIds = [...new Set(matched.map((item) => item.settlementId))]
     .filter((groupId) => {
@@ -1374,6 +1541,16 @@ function createJournals(
         groupId,
         policy.cutoffDate,
       );
+      const hasUnexplainedSettlementDebit = Boolean(
+        integrity.utr &&
+          batch.bank.some(
+            (row) =>
+              row.direction === 'debit' &&
+              row.postedAt <= policy.cutoffDate &&
+              normalizeReference(row.utr) === integrity.utr &&
+              !claimedIndependentBankIds.has(row.id),
+          ),
+      );
       return (
         paymentIds.length > 0 &&
         paymentIds.every((id) => matchedGatewayIds.has(id)) &&
@@ -1381,17 +1558,18 @@ function createJournals(
         !integrity.missingUtr &&
         integrity.consistentUtr &&
         integrity.datesInPolicy &&
-        integrity.arithmeticValid
+        integrity.arithmeticValid &&
+        !hasUnexplainedSettlementDebit
       );
     });
   return settlementIds.map((groupId) => {
-    const reconRows = batch.gateway.filter((row) => row.settlementId === groupId);
+    const reconRows = settlementFundedRows(batch.gateway, groupId);
     const gross = reconRows.reduce((sum, row) => sum + row.creditPaise, 0);
     const deductions = reconRows.reduce((sum, row) => sum + row.debitPaise, 0);
     const net = gross - deductions;
     const lines: JournalLine[] = [
       { account: 'Bank — settlement clearing', debitPaise: net, creditPaise: 0 },
-      { account: 'Gateway fees, tax & refunds', debitPaise: deductions, creditPaise: 0 },
+      { account: 'Gateway fees, tax & adjustments', debitPaise: deductions, creditPaise: 0 },
       { account: 'Razorpay clearing', debitPaise: 0, creditPaise: gross },
     ];
     const debitPaise = lines.reduce((sum, line) => sum + line.debitPaise, 0);
@@ -1411,10 +1589,51 @@ function createJournals(
   });
 }
 
+function createIndependentDebitJournals(
+  checks: IndependentDebitCheck[],
+): IndependentDebitJournal[] {
+  return checks
+    .filter(
+      (check): check is IndependentDebitCheck & { bankRowId: string } =>
+        check.status === 'matched' && check.bankRowId !== null,
+    )
+    .map((check) => {
+      const lines: JournalLine[] = [
+        {
+          account:
+            check.kind === 'refund'
+              ? 'Customer refunds clearing'
+              : 'Chargeback receivable / dispute expense',
+          debitPaise: check.amountPaise,
+          creditPaise: 0,
+        },
+        {
+          account: 'Bank — independent debit clearing',
+          debitPaise: 0,
+          creditPaise: check.amountPaise,
+        },
+      ];
+      const debitPaise = lines.reduce((sum, line) => sum + line.debitPaise, 0);
+      const creditPaise = lines.reduce((sum, line) => sum + line.creditPaise, 0);
+      return {
+        id: `JRN-${check.kind.toUpperCase()}-${check.transactionId}`,
+        transactionId: check.transactionId,
+        kind: check.kind,
+        status: 'posting-ready' as const,
+        lines,
+        debitPaise,
+        creditPaise,
+        balanced: debitPaise === creditPaise,
+        bankRowId: check.bankRowId,
+      };
+    });
+}
+
 function buildCashPosition(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
   refundChecks: RefundCheck[],
+  chargebackChecks: ChargebackCheck[],
   journals: SettlementJournal[],
   openingPaise: number,
   cutoffDate: string,
@@ -1453,6 +1672,17 @@ function buildCashPosition(
         verifiedRefundBankIds.has(row.id) && row.direction === 'debit',
     )
     .reduce((sum, row) => sum + row.amountPaise, 0);
+  const verifiedChargebackBankIds = new Set(
+    chargebackChecks
+      .filter((check) => check.status === 'matched' && check.bankRowId)
+      .map((check) => check.bankRowId!),
+  );
+  const verifiedChargebackDebitsPaise = inPolicyBank
+    .filter(
+      (row) =>
+        verifiedChargebackBankIds.has(row.id) && row.direction === 'debit',
+    )
+    .reduce((sum, row) => sum + row.amountPaise, 0);
   const dispositionByBankId = new Map(
     dispositions
       .filter((item) => item.source === 'bank')
@@ -1471,7 +1701,11 @@ function buildCashPosition(
     )
     .reduce((sum, row) => sum + signedAmount(row), 0);
   const unresolvedBankMovementPaise =
-    bankNet - verifiedSettlementsPaise + verifiedRefundDebitsPaise - otherBankMovementPaise;
+    bankNet -
+    verifiedSettlementsPaise +
+    verifiedRefundDebitsPaise +
+    verifiedChargebackDebitsPaise -
+    otherBankMovementPaise;
   const exceptionSettlementTotal = (reasonCode: ExceptionCode) =>
     [
       ...new Set(
@@ -1518,6 +1752,7 @@ function buildCashPosition(
     openingPaise,
     verifiedSettlementsPaise,
     verifiedRefundDebitsPaise,
+    verifiedChargebackDebitsPaise,
     otherBankMovementPaise,
     unresolvedBankMovementPaise,
     closingBankPaise,
@@ -1529,105 +1764,270 @@ function buildCashPosition(
   };
 }
 
-export function reconcileRefunds(
+const INDEPENDENT_DEBIT_WINDOW_DAYS = 5;
+
+function independentDebitContextMatches(event: GatewayRow, bank: BankRow) {
+  const narration = normalizeReference(bank.narration);
+  const order = normalizeReference(event.orderId);
+  const transaction = normalizeReference(event.id);
+  return order ? narration.includes(order) : narration.includes(transaction);
+}
+
+function independentDebitExceptionType(
+  kind: 'refund' | 'chargeback',
+  suffix:
+    | 'missing_bank_debit'
+    | 'amount_mismatch'
+    | 'utr_mismatch'
+    | 'date_out_of_policy'
+    | 'duplicate_bank_debit'
+    | 'bank_evidence_reused'
+    | 'duplicate_event',
+) {
+  return `${kind}_${suffix}` as IndependentDebitExceptionType;
+}
+
+export function reconcileIndependentDebits(
   batch: Pick<SyntheticBatch, 'gateway' | 'bank'>,
   cutoffDate: string,
-): RefundCheck[] {
-  const usedBankRows = new Set<string>();
+): { refundChecks: RefundCheck[]; chargebackChecks: ChargebackCheck[] } {
+  const events = batch.gateway
+    .filter(
+      (row): row is GatewayRow & { type: 'refund' | 'chargeback' } =>
+        row.type === 'refund' || row.type === 'chargeback',
+    )
+    .sort((left, right) => left.id.localeCompare(right.id));
   const debits = batch.bank
     .filter((row) => row.direction === 'debit' && row.postedAt <= cutoffDate)
     .sort((left, right) => left.id.localeCompare(right.id));
+  const dateEligible = (event: GatewayRow, bank: BankRow) =>
+    event.createdAt <= cutoffDate &&
+    bank.postedAt >= event.createdAt &&
+    bank.postedAt <= addDays(event.createdAt, INDEPENDENT_DEBIT_WINDOW_DAYS);
 
-  return batch.gateway
-    .filter((row) => row.type === 'refund')
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map((refund) => {
-      const utr = normalizeReference(refund.settlementUtr);
-      const available = debits.filter((row) => !usedBankRows.has(row.id));
-      const sameUtr = utr
-        ? available.filter((row) => normalizeReference(row.utr) === utr)
-        : [];
-      const exact = sameUtr.find((row) => row.amountPaise === refund.debitPaise);
-      if (exact) {
-        usedBankRows.add(exact.id);
-        return {
-          gatewayRowId: refund.id,
-          transactionId: refund.id,
-          orderId: refund.orderId,
-          settlementUtr: refund.settlementUtr,
-          amountPaise: refund.debitPaise,
-          status: 'matched' as const,
-          bankRowId: exact.id,
-          type: null,
-          explanation: `Refund ${refund.id} independently matched bank debit ${exact.id} by UTR, debit direction, and exact paise amount.`,
-        };
-      }
-      const sameAmount = available.find(
-        (row) =>
-          row.amountPaise === refund.debitPaise &&
-          row.postedAt >= refund.createdAt &&
-          (!refund.orderId ||
-            row.narration.toUpperCase().includes(refund.orderId.toUpperCase()) ||
-            row.postedAt === refund.createdAt),
+  const duplicateFingerprints = new Map<string, GatewayRow[]>();
+  events.forEach((event) => {
+    const fingerprint = [
+      event.type,
+      normalizeReference(event.orderId),
+      event.createdAt,
+      event.debitPaise,
+      normalizeReference(event.settlementUtr),
+    ].join('|');
+    const group = duplicateFingerprints.get(fingerprint) ?? [];
+    group.push(event);
+    duplicateFingerprints.set(fingerprint, group);
+  });
+  const duplicateEventIds = new Set(
+    [...duplicateFingerprints.values()]
+      .filter((group) => group.length > 1)
+      .flatMap((group) => group.map((event) => event.id)),
+  );
+
+  const overRefundedEventIds = new Set<string>();
+  const refundsByOrder = new Map<string, GatewayRow[]>();
+  events
+    .filter((event) => event.type === 'refund' && event.orderId)
+    .forEach((event) => {
+      const order = normalizeReference(event.orderId);
+      const group = refundsByOrder.get(order) ?? [];
+      group.push(event);
+      refundsByOrder.set(order, group);
+    });
+  refundsByOrder.forEach((refunds, order) => {
+    const originalPayments = batch.gateway.filter(
+      (row) => row.type === 'payment' && normalizeReference(row.orderId) === order,
+    );
+    const originalAmount = Math.max(
+      0,
+      ...originalPayments.map((payment) => payment.creditPaise),
+    );
+    const refundedAmount = refunds.reduce(
+      (sum, refund) => sum + refund.debitPaise,
+      0,
+    );
+    if (originalAmount > 0 && refundedAmount > originalAmount) {
+      refunds.forEach((refund) => overRefundedEventIds.add(refund.id));
+    }
+  });
+
+  const primaryCandidates = new Map<string, BankRow[]>();
+  events.forEach((event) => {
+    const utr = normalizeReference(event.settlementUtr);
+    let candidates = debits.filter(
+      (bank) =>
+        dateEligible(event, bank) &&
+        bank.amountPaise === event.debitPaise &&
+        (utr
+          ? normalizeReference(bank.utr) === utr
+          : independentDebitContextMatches(event, bank)),
+    );
+    if (candidates.length > 1) {
+      const contextCandidates = candidates.filter((bank) =>
+        independentDebitContextMatches(event, bank),
       );
-      if (sameAmount && utr) {
-        return {
-          gatewayRowId: refund.id,
-          transactionId: refund.id,
-          orderId: refund.orderId,
-          settlementUtr: refund.settlementUtr,
-          amountPaise: refund.debitPaise,
-          status: 'exception' as const,
-          bankRowId: sameAmount.id,
-          type: 'refund_utr_mismatch' as const,
-          explanation: `Bank debit ${sameAmount.id} matches refund ${refund.id} by amount and date/order context, but its UTR does not match ${refund.settlementUtr}.`,
-        };
-      }
-      if (sameAmount) {
-        usedBankRows.add(sameAmount.id);
-        return {
-          gatewayRowId: refund.id,
-          transactionId: refund.id,
-          orderId: refund.orderId,
-          settlementUtr: refund.settlementUtr,
-          amountPaise: refund.debitPaise,
-          status: 'matched' as const,
-          bankRowId: sameAmount.id,
-          type: null,
-          explanation: `Refund ${refund.id} independently matched bank debit ${sameAmount.id} by order/date context and exact paise amount; no gateway UTR was available.`,
-        };
-      }
-      if (sameUtr.length > 0) {
-        return {
-          gatewayRowId: refund.id,
-          transactionId: refund.id,
-          orderId: refund.orderId,
-          settlementUtr: refund.settlementUtr,
-          amountPaise: refund.debitPaise,
-          status: 'exception' as const,
-          bankRowId: sameUtr[0].id,
-          type: 'refund_amount_mismatch' as const,
-          explanation: `Gateway refund ${refund.id} is ${formatInr(refund.debitPaise)}, but bank debit ${sameUtr[0].id} with the same UTR is ${formatInr(sameUtr[0].amountPaise)}.`,
-        };
+      if (contextCandidates.length > 0) candidates = contextCandidates;
+    }
+    primaryCandidates.set(event.id, candidates);
+  });
+  const bankClaimants = new Map<string, string[]>();
+  primaryCandidates.forEach((candidates, eventId) => {
+    candidates.forEach((bank) => {
+      const claimants = bankClaimants.get(bank.id) ?? [];
+      claimants.push(eventId);
+      bankClaimants.set(bank.id, claimants);
+    });
+  });
+
+  const checks = events.map((event): IndependentDebitCheck => {
+    const label = event.type === 'refund' ? 'Refund' : 'Chargeback';
+    const base = {
+      kind: event.type,
+      gatewayRowId: event.id,
+      transactionId: event.id,
+      orderId: event.orderId,
+      settlementUtr: event.settlementUtr,
+      amountPaise: event.debitPaise,
+    } as const;
+    const makeException = (
+      type: IndependentDebitExceptionType,
+      candidateBankRows: BankRow[],
+      explanation: string,
+    ) => ({
+      ...base,
+      status: 'exception' as const,
+      bankRowId: candidateBankRows[0]?.id ?? null,
+      bankRowIds: candidateBankRows.map((row) => row.id),
+      type,
+      explanation,
+    }) as IndependentDebitCheck;
+
+    if (event.createdAt > cutoffDate) {
+      return makeException(
+        independentDebitExceptionType(event.type, 'date_out_of_policy'),
+        [],
+        `${label} ${event.id} is dated ${event.createdAt}, after the ${cutoffDate} close cutoff, so no bank evidence can be accepted in this close.`,
+      );
+    }
+    if (duplicateEventIds.has(event.id)) {
+      return makeException(
+        independentDebitExceptionType(event.type, 'duplicate_event'),
+        primaryCandidates.get(event.id) ?? [],
+        `${label} ${event.id} duplicates another economic event with the same type, order, date, amount, and UTR. Every copy is quarantined instead of choosing one by row order.`,
+      );
+    }
+    if (event.type === 'refund' && overRefundedEventIds.has(event.id)) {
+      return makeException(
+        'refund_exceeds_original_payment',
+        primaryCandidates.get(event.id) ?? [],
+        `Cumulative refunds for ${event.orderId} exceed the unique original gateway payment amount. All refunds for the order remain held.`,
+      );
+    }
+
+    const primary = primaryCandidates.get(event.id) ?? [];
+    if (primary.length > 1) {
+      return makeException(
+        independentDebitExceptionType(event.type, 'duplicate_bank_debit'),
+        primary,
+        `${label} ${event.id} has ${primary.length} equally valid bank debits. The verifier refuses to select the first row.`,
+      );
+    }
+    if (primary.length === 1) {
+      const claimants = bankClaimants.get(primary[0].id) ?? [];
+      if (claimants.length > 1) {
+        return makeException(
+          independentDebitExceptionType(event.type, 'bank_evidence_reused'),
+          primary,
+          `Bank debit ${primary[0].id} is claimed by ${claimants.length} independent gateway events. It cannot be reused.`,
+        );
       }
       return {
-        gatewayRowId: refund.id,
-        transactionId: refund.id,
-        orderId: refund.orderId,
-        settlementUtr: refund.settlementUtr,
-        amountPaise: refund.debitPaise,
-        status: 'exception' as const,
-        bankRowId: null,
-        type: 'refund_missing_bank_debit' as const,
-        explanation: `Gateway refund ${refund.id} for ${refund.orderId ?? 'an unlinked order'} has no corresponding bank debit through ${cutoffDate}. The original payment result does not override this refund exception.`,
-      };
-    });
+        ...base,
+        status: 'matched',
+        bankRowId: primary[0].id,
+        bankRowIds: [primary[0].id],
+        type: null,
+        explanation: `${label} ${event.id} independently matched bank debit ${primary[0].id} by unique UTR, debit direction, exact paise amount, and the ${INDEPENDENT_DEBIT_WINDOW_DAYS}-day evidence window.`,
+      } as IndependentDebitCheck;
+    }
+
+    const utr = normalizeReference(event.settlementUtr);
+    const sameAmountContext = debits.filter(
+      (bank) =>
+        dateEligible(event, bank) &&
+        bank.amountPaise === event.debitPaise &&
+        independentDebitContextMatches(event, bank),
+    );
+    if (sameAmountContext.length > 1) {
+      return makeException(
+        independentDebitExceptionType(event.type, 'duplicate_bank_debit'),
+        sameAmountContext,
+        `${label} ${event.id} has multiple amount-and-context bank candidates with unmatched UTRs.`,
+      );
+    }
+    if (sameAmountContext.length === 1 && utr) {
+      return makeException(
+        independentDebitExceptionType(event.type, 'utr_mismatch'),
+        sameAmountContext,
+        `Bank debit ${sameAmountContext[0].id} matches ${event.type} ${event.id} by amount, date, and order context, but its UTR does not match ${event.settlementUtr}.`,
+      );
+    }
+    let sameUtr = utr
+      ? debits.filter(
+          (bank) =>
+            dateEligible(event, bank) && normalizeReference(bank.utr) === utr,
+        )
+      : [];
+    if (sameUtr.length > 1) {
+      const contextual = sameUtr.filter((bank) =>
+        independentDebitContextMatches(event, bank),
+      );
+      if (contextual.length > 0) sameUtr = contextual;
+    }
+    if (sameUtr.length > 1) {
+      return makeException(
+        independentDebitExceptionType(event.type, 'duplicate_bank_debit'),
+        sameUtr,
+        `${label} ${event.id} has multiple in-window bank debits carrying its UTR, so the amount variance cannot be resolved safely.`,
+      );
+    }
+    if (sameUtr.length === 1) {
+      return makeException(
+        independentDebitExceptionType(event.type, 'amount_mismatch'),
+        sameUtr,
+        `Gateway ${event.type} ${event.id} is ${formatInr(event.debitPaise)}, but bank debit ${sameUtr[0].id} with the same UTR is ${formatInr(sameUtr[0].amountPaise)}.`,
+      );
+    }
+
+    return makeException(
+      independentDebitExceptionType(event.type, 'missing_bank_debit'),
+      [],
+      `Gateway ${event.type} ${event.id} for ${event.orderId ?? 'an unlinked order'} has no unique corresponding bank debit through ${cutoffDate}. The original payment result does not override this exception.`,
+    );
+  });
+
+  return {
+    refundChecks: checks.filter(
+      (check): check is RefundCheck => check.kind === 'refund',
+    ),
+    chargebackChecks: checks.filter(
+      (check): check is ChargebackCheck => check.kind === 'chargeback',
+    ),
+  };
+}
+
+export function reconcileRefunds(
+  batch: Pick<SyntheticBatch, 'gateway' | 'bank'>,
+  cutoffDate: string,
+) {
+  return reconcileIndependentDebits(batch, cutoffDate).refundChecks;
 }
 
 function buildSourceDispositions(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
   refundChecks: RefundCheck[],
+  chargebackChecks: ChargebackCheck[],
   journals: SettlementJournal[],
   cutoffDate: string,
 ): SourceDisposition[] {
@@ -1640,13 +2040,30 @@ function buildSourceDispositions(
     decision.gatewayRowIds.forEach((id) => decisionByGateway.set(id, decision));
     decision.bankRowIds.forEach((id) => decisionByBank.set(id, decision));
   });
-  const refundByGateway = new Map(
-    refundChecks.map((check) => [check.gatewayRowId, check]),
+  const independentChecks: IndependentDebitCheck[] = [
+    ...refundChecks,
+    ...chargebackChecks,
+  ];
+  const independentByGateway = new Map(
+    independentChecks.map((check) => [check.gatewayRowId, check]),
   );
-  const refundByBank = new Map(
-    refundChecks
-      .filter((check) => check.bankRowId)
-      .map((check) => [check.bankRowId!, check]),
+  const independentByBank = new Map(
+    independentChecks.flatMap((check) =>
+      check.bankRowIds.map((bankRowId) => [bankRowId, check] as const),
+    ),
+  );
+  const independentUtrs = new Set(
+    independentChecks
+      .map((check) => normalizeReference(check.settlementUtr))
+      .filter(Boolean),
+  );
+  const settlementUtrs = new Set(
+    batch.gateway
+      .filter(
+        (row) => row.type === 'payment' || row.type === 'adjustment',
+      )
+      .map((row) => normalizeReference(row.settlementUtr))
+      .filter(Boolean),
   );
   const exceptionSettlementIds = new Set(
     decisions
@@ -1678,10 +2095,13 @@ function buildSourceDispositions(
   });
   const gateway: SourceDisposition[] = batch.gateway.map((row) => {
     const decision = decisionByGateway.get(row.id);
-    const refund = refundByGateway.get(row.id);
+    const independentDebit = independentByGateway.get(row.id);
     let disposition: SourceDisposition['disposition'] = 'unclassified';
-    if (refund) {
-      disposition = refund.status === 'matched' ? 'matched-evidence' : 'exception-evidence';
+    if (independentDebit) {
+      disposition =
+        independentDebit.status === 'matched'
+          ? 'matched-evidence'
+          : 'exception-evidence';
     } else if (decision) {
       disposition =
         decision.status === 'matched' ? 'matched-evidence' : 'exception-evidence';
@@ -1705,20 +2125,35 @@ function buildSourceDispositions(
   });
   const bank: SourceDisposition[] = batch.bank.map((row) => {
     const decision = decisionByBank.get(row.id);
-    const refund = refundByBank.get(row.id);
+    const independentDebit = independentByBank.get(row.id);
     const supportsException =
       exceptionUtrs.has(normalizeReference(row.utr)) ||
       [...exceptionSettlementIds].some((groupId) =>
         row.narration.includes(groupId),
       );
+    const hasIndependentDebitHint =
+      row.direction === 'debit' &&
+      /\b(refund|chargeback|settlement reversal|reversal)\b/i.test(
+        row.narration,
+      );
     let disposition: SourceDisposition['disposition'] = 'unclassified';
     if (row.postedAt > cutoffDate) {
       disposition = 'post-cutoff';
-    } else if (refund) {
-      disposition = refund.status === 'matched' ? 'matched-evidence' : 'exception-support';
+    } else if (independentDebit) {
+      disposition =
+        independentDebit.status === 'matched'
+          ? 'matched-evidence'
+          : 'exception-support';
     } else if (decision) {
       disposition =
         decision.status === 'matched' ? 'matched-evidence' : 'exception-evidence';
+    } else if (
+      row.direction === 'debit' &&
+      (independentUtrs.has(normalizeReference(row.utr)) ||
+        settlementUtrs.has(normalizeReference(row.utr)) ||
+        hasIndependentDebitHint)
+    ) {
+      disposition = 'unclassified';
     } else if (row.kind === 'operating') {
       disposition = 'operating-movement';
     } else if (supportsException) {
@@ -1778,6 +2213,7 @@ function buildCloseExceptions(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
   refundChecks: RefundCheck[],
+  chargebackChecks: ChargebackCheck[],
   dispositions: SourceDisposition[],
 ): CloseException[] {
   const targetExceptions: CloseException[] = decisions
@@ -1847,6 +2283,7 @@ function buildCloseExceptions(
       }
       if (item.source === 'bank') {
         const row = bankById.get(item.rowId)!;
+        const isDebit = row.direction === 'debit';
         return {
           id: `source-bank-${row.id}`,
           kind: 'source' as const,
@@ -1856,12 +2293,20 @@ function buildCloseExceptions(
           settlementId: null,
           orderId: null,
           amountPaise: row.amountPaise,
-          reasonCode: 'UNEXPLAINED_BANK_SETTLEMENT' as const,
+          reasonCode: isDebit
+            ? ('UNEXPLAINED_BANK_DEBIT' as const)
+            : ('UNEXPLAINED_BANK_SETTLEMENT' as const),
           materiality: materiality(row.amountPaise),
-          title: 'Settlement-like bank movement is unexplained',
-          explanation: `${row.id} carries settlement evidence but is neither verified cash nor support for a known exception.`,
-          missingEvidence: 'A gateway settlement and UTR lineage explaining this bank movement.',
-          nextAction: 'Route to Treasury and identify the settlement before rerunning.',
+          title: isDebit
+            ? 'Refund or chargeback-like bank debit is unexplained'
+            : 'Settlement-like bank movement is unexplained',
+          explanation: `${row.id} carries finance-event evidence but is neither verified cash nor support for a known exception.`,
+          missingEvidence: isDebit
+            ? 'A unique gateway refund or chargeback event explaining this debit.'
+            : 'A gateway settlement and UTR lineage explaining this bank movement.',
+          nextAction: isDebit
+            ? 'Route to Payments Ops and identify the debit before rerunning.'
+            : 'Route to Treasury and identify the settlement before rerunning.',
           ownerQueue: 'Treasury' as const,
           sla: 'Immediate' as const,
         };
@@ -1886,13 +2331,33 @@ function buildCloseExceptions(
         sla: 'Immediate' as const,
       };
     });
-  const refundExceptions: CloseException[] = refundChecks
-    .filter(
-      (check): check is RefundCheck & { type: RefundExceptionType } =>
-        check.status === 'exception' && check.type !== null,
-    )
-    .map((check) => ({
-      id: `refund-${check.transactionId}`,
+  const independentExceptions: CloseException[] = [
+    ...refundChecks,
+    ...chargebackChecks,
+  ]
+    .filter((check) => check.status === 'exception' && check.type !== null)
+    .map((check) => {
+      const type = check.type!;
+      const label = check.kind === 'refund' ? 'Refund' : 'Chargeback';
+      const suffix = type.replace(`${check.kind}_`, '');
+      const title =
+        suffix === 'missing_bank_debit'
+          ? `${label} is missing its bank debit`
+          : suffix === 'amount_mismatch'
+            ? `${label} and bank debit amounts differ`
+            : suffix === 'utr_mismatch'
+              ? `${label} UTR does not match the bank debit`
+              : suffix === 'date_out_of_policy'
+                ? `${label} falls outside the close cutoff`
+                : suffix === 'duplicate_event'
+                  ? `Duplicate ${check.kind} events detected`
+                  : suffix === 'bank_evidence_reused'
+                    ? `${label} bank evidence is reused`
+                    : suffix === 'exceeds_original_payment'
+                      ? 'Cumulative refund exceeds the original payment'
+                      : `${label} has duplicate bank debits`;
+      return {
+      id: `${check.kind}-${check.transactionId}`,
       kind: 'source' as const,
       targetId: null,
       source: 'gateway' as const,
@@ -1901,36 +2366,36 @@ function buildCloseExceptions(
         batch.gateway.find((row) => row.id === check.gatewayRowId)?.settlementId ?? null,
       orderId: check.orderId,
       amountPaise: check.amountPaise,
-      reasonCode: check.type,
-      type: check.type,
+      reasonCode: type,
+      type,
       transactionId: check.transactionId,
       settlementUtr: check.settlementUtr,
       materiality: materiality(check.amountPaise),
-      title:
-        check.type === 'refund_missing_bank_debit'
-          ? 'Refund is missing its bank debit'
-          : check.type === 'refund_amount_mismatch'
-            ? 'Refund and bank debit amounts differ'
-            : 'Refund UTR does not match the bank debit',
+      title,
       explanation: check.explanation,
       missingEvidence:
-        check.type === 'refund_missing_bank_debit'
-          ? 'A bank debit for the refund amount and UTR.'
-          : check.type === 'refund_amount_mismatch'
-            ? 'An exact-paise bank debit with the refund UTR.'
-            : 'A bank debit carrying the gateway refund UTR.',
-      nextAction: 'Payments Ops must verify the refund payout and attach corrected bank evidence before rerunning.',
+        suffix === 'missing_bank_debit'
+          ? `A bank debit for the ${check.kind} amount and UTR.`
+          : suffix === 'amount_mismatch'
+            ? `An exact-paise bank debit with the ${check.kind} UTR.`
+            : suffix === 'utr_mismatch'
+              ? `A bank debit carrying the gateway ${check.kind} UTR.`
+              : 'Unique, in-policy, one-to-one gateway and bank evidence.',
+      nextAction: `Payments Ops must verify the ${check.kind} and attach corrected bank evidence before rerunning.`,
       ownerQueue: 'Payments Ops' as const,
       sla: 'Immediate' as const,
-    }));
-  return [...targetExceptions, ...refundExceptions, ...sourceExceptions];
+    };
+    });
+  return [...targetExceptions, ...independentExceptions, ...sourceExceptions];
 }
 
 function buildCertificate(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
   refundChecks: RefundCheck[],
+  chargebackChecks: ChargebackCheck[],
   journals: SettlementJournal[],
+  debitJournals: IndependentDebitJournal[],
   dispositions: SourceDisposition[],
   policy: ClosePolicy,
   cash: CashPosition,
@@ -2019,6 +2484,70 @@ function buildCertificate(
     matchedSettlementIds.every((groupId) =>
       journals.some((journal) => journal.settlementId === groupId),
     );
+  const allIndependentChecks: IndependentDebitCheck[] = [
+    ...refundChecks,
+    ...chargebackChecks,
+  ];
+  const matchedIndependentChecks = allIndependentChecks.filter(
+    (check) => check.status === 'matched',
+  );
+  const matchedIndependentBankIds = matchedIndependentChecks
+    .map((check) => check.bankRowId)
+    .filter((bankRowId): bankRowId is string => bankRowId !== null);
+  const uniqueIndependentBankIds = new Set(matchedIndependentBankIds);
+  const independentEvidencePass =
+    uniqueIndependentBankIds.size === matchedIndependentBankIds.length &&
+    matchedIndependentChecks.every((check) => {
+      const event = batch.gateway.find((row) => row.id === check.gatewayRowId);
+      const bank = check.bankRowId
+        ? batch.bank.find((row) => row.id === check.bankRowId)
+        : null;
+      return Boolean(
+        event &&
+          bank &&
+          event.type === check.kind &&
+          bank.direction === 'debit' &&
+          bank.amountPaise === event.debitPaise &&
+          event.createdAt <= policy.cutoffDate &&
+          bank.postedAt >= event.createdAt &&
+          bank.postedAt <= policy.cutoffDate &&
+          dayDistance(event.createdAt, bank.postedAt) <=
+            INDEPENDENT_DEBIT_WINDOW_DAYS &&
+          (!normalizeReference(event.settlementUtr) ||
+            normalizeReference(event.settlementUtr) ===
+              normalizeReference(bank.utr)),
+      );
+    });
+  const controlPopulationPass = <Check extends IndependentDebitCheck>(
+    kind: 'refund' | 'chargeback',
+    checks: Check[],
+  ) => {
+    const expectedIds = batch.gateway
+      .filter((row) => row.type === kind)
+      .map((row) => row.id)
+      .sort();
+    const actualIds = checks.map((check) => check.gatewayRowId).sort();
+    return (
+      new Set(actualIds).size === actualIds.length &&
+      JSON.stringify(actualIds) === JSON.stringify(expectedIds)
+    );
+  };
+  const debitJournalIds = new Set(debitJournals.map((journal) => journal.id));
+  const independentJournalPass =
+    debitJournalIds.size === debitJournals.length &&
+    debitJournals.length === matchedIndependentChecks.length &&
+    debitJournals.every(
+      (journal) =>
+        journal.balanced &&
+        journal.debitPaise === journal.creditPaise &&
+        matchedIndependentChecks.some(
+          (check) =>
+            check.transactionId === journal.transactionId &&
+            check.kind === journal.kind &&
+            check.bankRowId === journal.bankRowId &&
+            check.amountPaise === journal.debitPaise,
+        ),
+    );
   const inPolicyBankNet = batch.bank
     .filter((row) => row.postedAt <= policy.cutoffDate)
     .reduce(
@@ -2033,6 +2562,7 @@ function buildCertificate(
     cash.closingBankPaise === policy.openingCashPaise + inPolicyBankNet &&
     cash.verifiedSettlementsPaise +
       -cash.verifiedRefundDebitsPaise +
+      -cash.verifiedChargebackDebitsPaise +
       cash.otherBankMovementPaise +
       cash.unresolvedBankMovementPaise ===
       inPolicyBankNet;
@@ -2066,6 +2596,11 @@ function buildCertificate(
       proof: `${journals.length}/${matchedSettlementIds.length} required posting-ready journals balance to the paise; duplicate journal IDs: ${journals.length - journalIds.size}.`,
     },
     {
+      name: 'Independent debit journal conservation',
+      passed: independentJournalPass,
+      proof: `${debitJournals.length}/${matchedIndependentChecks.length} verified refund and chargeback debits have unique, balanced, idempotent journals.`,
+    },
+    {
       name: 'Cash cutoff conservation',
       passed: cashProofsPass,
       proof: `Opening cash plus every bank movement through ${policy.cutoffDate} equals closing cash; ${postCutoffRows} later rows were explicitly excluded.`,
@@ -2073,8 +2608,15 @@ function buildCertificate(
     {
       name: 'Independent refund control',
       passed:
-        refundChecks.length === batch.gateway.filter((row) => row.type === 'refund').length,
+        controlPopulationPass('refund', refundChecks) && independentEvidencePass,
       proof: `${refundChecks.filter((item) => item.status === 'matched').length}/${refundChecks.length} refunds have verified bank debits; ${refundChecks.filter((item) => item.status === 'exception').length} are independently listed even when the original payment matched.`,
+    },
+    {
+      name: 'Independent chargeback control',
+      passed:
+        controlPopulationPass('chargeback', chargebackChecks) &&
+        independentEvidencePass,
+      proof: `${chargebackChecks.filter((item) => item.status === 'matched').length}/${chargebackChecks.length} chargebacks have unique bank-debit proof; ${chargebackChecks.filter((item) => item.status === 'exception').length} remain held independently.`,
     },
   ];
   const allInvariantsPass = invariants.every((item) => item.passed);
@@ -2082,7 +2624,8 @@ function buildCertificate(
     id: `CERT-${batch.id}`,
     status: allInvariantsPass
       ? decisions.some((item) => item.status === 'exception') ||
-        refundChecks.some((item) => item.status === 'exception')
+        refundChecks.some((item) => item.status === 'exception') ||
+        chargebackChecks.some((item) => item.status === 'exception')
         ? 'READY_WITH_EXCEPTIONS'
         : 'READY_TO_POST'
       : 'BLOCKED',
@@ -2099,16 +2642,20 @@ function buildCertificate(
           openingCashPaise: policy.openingCashPaise,
           policyVersion: policy.policyVersion,
           agentMode: policy.agentMode,
+          sourceManifestSha256: policy.sourceManifestSha256 ?? null,
         },
         decisions,
         refundChecks,
+        chargebackChecks,
         journals,
+        debitJournals,
         dispositions,
         cash,
       }),
     ),
     policyVersion: policy.policyVersion,
     agentMode: policy.agentMode,
+    sourceManifestSha256: policy.sourceManifestSha256 ?? null,
     invariants,
   };
 }
@@ -2138,23 +2685,43 @@ export function runClose(
     }),
     policy,
   );
-  const refundChecks = reconcileRefunds(batch, policy.cutoffDate);
+  const { refundChecks, chargebackChecks } = reconcileIndependentDebits(
+    batch,
+    policy.cutoffDate,
+  );
   const durationMs = performance.now() - start;
-  const journals = createJournals(batch, decisions, policy);
+  const journals = createJournals(batch, decisions, policy, [
+    ...refundChecks,
+    ...chargebackChecks,
+  ]);
+  const debitJournals = createIndependentDebitJournals([
+    ...refundChecks,
+    ...chargebackChecks,
+  ]);
   const dispositions = buildSourceDispositions(
     batch,
     decisions,
     refundChecks,
+    chargebackChecks,
     journals,
     policy.cutoffDate,
   );
-  const exceptions = buildCloseExceptions(batch, decisions, refundChecks, dispositions);
+  const exceptions = buildCloseExceptions(
+    batch,
+    decisions,
+    refundChecks,
+    chargebackChecks,
+    dispositions,
+  );
   const evaluated = evaluateDecisions(batch, decisions, durationMs);
   const metrics: GroundTruthEvaluationMetrics = {
     ...evaluated,
     refundChecks: refundChecks.length,
     refundMatches: refundChecks.filter((item) => item.status === 'matched').length,
     refundExceptions: refundChecks.filter((item) => item.status === 'exception').length,
+    chargebackChecks: chargebackChecks.length,
+    chargebackMatches: chargebackChecks.filter((item) => item.status === 'matched').length,
+    chargebackExceptions: chargebackChecks.filter((item) => item.status === 'exception').length,
     sourceExceptions: exceptions.filter((item) => item.kind === 'source').length,
     totalExceptions: exceptions.length,
   };
@@ -2162,6 +2729,7 @@ export function runClose(
     batch,
     decisions,
     refundChecks,
+    chargebackChecks,
     journals,
     policy.openingCashPaise,
     policy.cutoffDate,
@@ -2172,15 +2740,19 @@ export function runClose(
     batch,
     decisions,
     refundChecks,
+    chargebackChecks,
     exceptions,
     journals,
+    debitJournals,
     metrics,
     cash,
     certificate: buildCertificate(
       batch,
       decisions,
       refundChecks,
+      chargebackChecks,
       journals,
+      debitJournals,
       dispositions,
       policy,
       cash,
@@ -2199,12 +2771,14 @@ export interface ImportedCloseOptions {
   generatedAt: string;
   cutoffDate: string;
   openingCashPaise?: number;
+  sourceManifestSha256?: string;
 }
 
 function buildOperationalMetrics(
   batch: SyntheticBatch,
   decisions: ReconciliationDecision[],
   refundChecks: RefundCheck[],
+  chargebackChecks: ChargebackCheck[],
   durationMs: number,
   sourceExceptionCount: number,
 ): OperationalEvaluationMetrics {
@@ -2252,6 +2826,9 @@ function buildOperationalMetrics(
     refundChecks: refundChecks.length,
     refundMatches: refundChecks.filter((item) => item.status === 'matched').length,
     refundExceptions: refundChecks.filter((item) => item.status === 'exception').length,
+    chargebackChecks: chargebackChecks.length,
+    chargebackMatches: chargebackChecks.filter((item) => item.status === 'matched').length,
+    chargebackExceptions: chargebackChecks.filter((item) => item.status === 'exception').length,
     durationMs: safeDuration,
     rowsPerSecond: Math.round((sourceRows / safeDuration) * 1000),
   };
@@ -2266,8 +2843,9 @@ export function runImportedClose(
     cutoffDate: options.cutoffDate,
     openingCashPaise: options.openingCashPaise ?? 0,
     issuedAt: options.generatedAt,
-    policyVersion: 'settlement-close/v1.5.0',
+    policyVersion: 'settlement-close/v1.6.0',
     agentMode: 'browser-local import + deterministic verifier',
+    sourceManifestSha256: options.sourceManifestSha256,
     targetIdForRow: (row) => `target:${row.id}`,
   };
   const batch: SyntheticBatch = {
@@ -2286,17 +2864,34 @@ export function runImportedClose(
     reconcileBatch(batch, policy),
     policy,
   );
-  const refundChecks = reconcileRefunds(batch, policy.cutoffDate);
+  const { refundChecks, chargebackChecks } = reconcileIndependentDebits(
+    batch,
+    policy.cutoffDate,
+  );
   const durationMs = performance.now() - start;
-  const journals = createJournals(batch, decisions, policy);
+  const journals = createJournals(batch, decisions, policy, [
+    ...refundChecks,
+    ...chargebackChecks,
+  ]);
+  const debitJournals = createIndependentDebitJournals([
+    ...refundChecks,
+    ...chargebackChecks,
+  ]);
   const dispositions = buildSourceDispositions(
     batch,
     decisions,
     refundChecks,
+    chargebackChecks,
     journals,
     policy.cutoffDate,
   );
-  const exceptions = buildCloseExceptions(batch, decisions, refundChecks, dispositions);
+  const exceptions = buildCloseExceptions(
+    batch,
+    decisions,
+    refundChecks,
+    chargebackChecks,
+    dispositions,
+  );
   const sourceExceptionCount = exceptions.filter(
     (item) => item.kind === 'source',
   ).length;
@@ -2304,6 +2899,7 @@ export function runImportedClose(
     batch,
     decisions,
     refundChecks,
+    chargebackChecks,
     journals,
     policy.openingCashPaise,
     policy.cutoffDate,
@@ -2314,12 +2910,15 @@ export function runImportedClose(
     batch,
     decisions,
     refundChecks,
+    chargebackChecks,
     exceptions,
     journals,
+    debitJournals,
     metrics: buildOperationalMetrics(
       batch,
       decisions,
       refundChecks,
+      chargebackChecks,
       durationMs,
       sourceExceptionCount,
     ),
@@ -2328,7 +2927,9 @@ export function runImportedClose(
       batch,
       decisions,
       refundChecks,
+      chargebackChecks,
       journals,
+      debitJournals,
       dispositions,
       policy,
       cash,

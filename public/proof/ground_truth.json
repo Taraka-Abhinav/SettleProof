@@ -1,0 +1,590 @@
+[
+  {
+    "targetId": "target_001",
+    "matchable": true,
+    "expectedGatewayId": "gw_001",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_002",
+    "matchable": true,
+    "expectedGatewayId": "gw_002",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_003",
+    "matchable": true,
+    "expectedGatewayId": "gw_003",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_004",
+    "matchable": true,
+    "expectedGatewayId": "gw_004",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_005",
+    "matchable": true,
+    "expectedGatewayId": "gw_005",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_006",
+    "matchable": true,
+    "expectedGatewayId": "gw_006",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_007",
+    "matchable": true,
+    "expectedGatewayId": "gw_007",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_008",
+    "matchable": true,
+    "expectedGatewayId": "gw_008",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_009",
+    "matchable": true,
+    "expectedGatewayId": "gw_009",
+    "expectedBankId": "bank_setl_01",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_010",
+    "matchable": true,
+    "expectedGatewayId": "gw_010",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_011",
+    "matchable": true,
+    "expectedGatewayId": "gw_011",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_012",
+    "matchable": true,
+    "expectedGatewayId": "gw_012",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_013",
+    "matchable": true,
+    "expectedGatewayId": "gw_013",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_014",
+    "matchable": true,
+    "expectedGatewayId": "gw_014",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_015",
+    "matchable": true,
+    "expectedGatewayId": "gw_015",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_016",
+    "matchable": true,
+    "expectedGatewayId": "gw_016",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_017",
+    "matchable": true,
+    "expectedGatewayId": "gw_017",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_018",
+    "matchable": true,
+    "expectedGatewayId": "gw_018",
+    "expectedBankId": "bank_setl_02",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_019",
+    "matchable": true,
+    "expectedGatewayId": "gw_019",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_020",
+    "matchable": true,
+    "expectedGatewayId": "gw_020",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_021",
+    "matchable": true,
+    "expectedGatewayId": "gw_021",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_022",
+    "matchable": true,
+    "expectedGatewayId": "gw_022",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_023",
+    "matchable": true,
+    "expectedGatewayId": "gw_023",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_024",
+    "matchable": true,
+    "expectedGatewayId": "gw_024",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_025",
+    "matchable": true,
+    "expectedGatewayId": "gw_025",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_026",
+    "matchable": true,
+    "expectedGatewayId": "gw_026",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_027",
+    "matchable": true,
+    "expectedGatewayId": "gw_027",
+    "expectedBankId": "bank_setl_03",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_028",
+    "matchable": true,
+    "expectedGatewayId": "gw_028",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_029",
+    "matchable": true,
+    "expectedGatewayId": "gw_029",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_030",
+    "matchable": true,
+    "expectedGatewayId": "gw_030",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_031",
+    "matchable": true,
+    "expectedGatewayId": "gw_031",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_032",
+    "matchable": true,
+    "expectedGatewayId": "gw_032",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_033",
+    "matchable": true,
+    "expectedGatewayId": "gw_033",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_034",
+    "matchable": true,
+    "expectedGatewayId": "gw_034",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_035",
+    "matchable": true,
+    "expectedGatewayId": "gw_035",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_036",
+    "matchable": true,
+    "expectedGatewayId": "gw_036",
+    "expectedBankId": "bank_setl_04",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_037",
+    "matchable": true,
+    "expectedGatewayId": "gw_037",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_038",
+    "matchable": true,
+    "expectedGatewayId": "gw_038",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_039",
+    "matchable": true,
+    "expectedGatewayId": "gw_039",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_040",
+    "matchable": true,
+    "expectedGatewayId": "gw_040",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_041",
+    "matchable": true,
+    "expectedGatewayId": "gw_041",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_042",
+    "matchable": true,
+    "expectedGatewayId": "gw_042",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_043",
+    "matchable": true,
+    "expectedGatewayId": "gw_043",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_044",
+    "matchable": true,
+    "expectedGatewayId": "gw_044",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_045",
+    "matchable": true,
+    "expectedGatewayId": "gw_045",
+    "expectedBankId": "bank_setl_05",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_046",
+    "matchable": true,
+    "expectedGatewayId": "gw_046",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_047",
+    "matchable": true,
+    "expectedGatewayId": "gw_047",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_048",
+    "matchable": true,
+    "expectedGatewayId": "gw_048",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_049",
+    "matchable": true,
+    "expectedGatewayId": "gw_049",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_050",
+    "matchable": true,
+    "expectedGatewayId": "gw_050",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_051",
+    "matchable": true,
+    "expectedGatewayId": "gw_051",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_052",
+    "matchable": true,
+    "expectedGatewayId": "gw_052",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_053",
+    "matchable": true,
+    "expectedGatewayId": "gw_053",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_054",
+    "matchable": true,
+    "expectedGatewayId": "gw_054",
+    "expectedBankId": "bank_setl_06",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_055",
+    "matchable": true,
+    "expectedGatewayId": "gw_055",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_056",
+    "matchable": true,
+    "expectedGatewayId": "gw_056",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_057",
+    "matchable": true,
+    "expectedGatewayId": "gw_057",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_058",
+    "matchable": true,
+    "expectedGatewayId": "gw_058",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_059",
+    "matchable": true,
+    "expectedGatewayId": "gw_059",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_060",
+    "matchable": true,
+    "expectedGatewayId": "gw_060",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_061",
+    "matchable": true,
+    "expectedGatewayId": "gw_061",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_062",
+    "matchable": true,
+    "expectedGatewayId": "gw_062",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_063",
+    "matchable": true,
+    "expectedGatewayId": "gw_063",
+    "expectedBankId": "bank_setl_07",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_064",
+    "matchable": true,
+    "expectedGatewayId": "gw_064",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_065",
+    "matchable": true,
+    "expectedGatewayId": "gw_065",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_066",
+    "matchable": true,
+    "expectedGatewayId": "gw_066",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_067",
+    "matchable": true,
+    "expectedGatewayId": "gw_067",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_068",
+    "matchable": true,
+    "expectedGatewayId": "gw_068",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_069",
+    "matchable": true,
+    "expectedGatewayId": "gw_069",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_070",
+    "matchable": true,
+    "expectedGatewayId": "gw_070",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_071",
+    "matchable": true,
+    "expectedGatewayId": "gw_071",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_072",
+    "matchable": true,
+    "expectedGatewayId": "gw_072",
+    "expectedBankId": "bank_setl_08",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_073",
+    "matchable": true,
+    "expectedGatewayId": "gw_073",
+    "expectedBankId": "bank_setl_09",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_074",
+    "matchable": true,
+    "expectedGatewayId": "gw_074",
+    "expectedBankId": "bank_setl_09",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_075",
+    "matchable": true,
+    "expectedGatewayId": "gw_075",
+    "expectedBankId": "bank_setl_09",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_076",
+    "matchable": true,
+    "expectedGatewayId": "gw_076",
+    "expectedBankId": "bank_setl_09",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_077",
+    "matchable": true,
+    "expectedGatewayId": "gw_077",
+    "expectedBankId": "bank_setl_09",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_078",
+    "matchable": true,
+    "expectedGatewayId": "gw_078",
+    "expectedBankId": "bank_setl_09",
+    "expectedException": null
+  },
+  {
+    "targetId": "target_079",
+    "matchable": false,
+    "expectedGatewayId": null,
+    "expectedBankId": null,
+    "expectedException": "NO_GATEWAY_CANDIDATE"
+  },
+  {
+    "targetId": "target_080",
+    "matchable": false,
+    "expectedGatewayId": null,
+    "expectedBankId": null,
+    "expectedException": "AMOUNT_VARIANCE"
+  },
+  {
+    "targetId": "target_081",
+    "matchable": false,
+    "expectedGatewayId": null,
+    "expectedBankId": null,
+    "expectedException": "AMBIGUOUS_CANDIDATES"
+  },
+  {
+    "targetId": "target_082",
+    "matchable": false,
+    "expectedGatewayId": null,
+    "expectedBankId": null,
+    "expectedException": "DUPLICATE_CAPTURE"
+  },
+  {
+    "targetId": "target_083",
+    "matchable": false,
+    "expectedGatewayId": null,
+    "expectedBankId": null,
+    "expectedException": "BANK_CREDIT_MISSING"
+  },
+  {
+    "targetId": "target_084",
+    "matchable": false,
+    "expectedGatewayId": null,
+    "expectedBankId": null,
+    "expectedException": "DUPLICATE_BANK_CREDIT"
+  }
+]

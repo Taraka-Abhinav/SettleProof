@@ -12,7 +12,7 @@ Replace bracketed personal links before submitting. The official form says the f
 
 ## Objectives / what it solves
 
-SettleProof closes the daily settlement reconciliation loop across an internal ERP ledger, Razorpay-style combined recon data, and a bank statement. A browser-local ingestion wizard accepts three real CSV/JSON exports, auto-detects their schema, converts money to integer paise, fingerprints every input, validates every row, and sends the canonical batch through the same verifier used by the benchmark—without uploading merchant data. It uses AI only to interpret noisy payment narrations, while deterministic policy independently verifies global one-to-one assignment, cutoff dates, complete settlement groups, consistent UTRs, settlement netting, bank receipt, balanced journals, and every refund’s bank debit. On the included 221-row synthetic batch, it safely auto-closes 78 of 84 payment targets at 100% precision, surfaces all six injected target exceptions, and independently flags `REF-1059` even though `ORDER-1059` matched. It exports posting-ready journals, a close certificate, and the complete unified exception list. Imported files are honestly reported with operational coverage only because they have no evaluator truth labels.
+SettleProof closes the daily settlement reconciliation loop across an internal ERP ledger, Razorpay-style combined recon data, and a bank statement. A browser-local ingestion wizard accepts three real CSV/JSON exports, auto-detects their schema, converts money to integer paise, hashes original bytes, validates every row, and sends the canonical batch through the same verifier used by the benchmark—without uploading merchant data. It uses AI only to interpret noisy payment narrations, while deterministic policy verifies global one-to-one assignment, cutoff dates, complete settlement groups, consistent UTRs, bank receipt, balanced journals, and independent refund/chargeback bank debits. On the included 223-row synthetic batch, it safely auto-closes 78 of 84 payment targets at 100% precision, surfaces all six injected target exceptions, verifies one chargeback, and independently flags `REF-1059` even though `ORDER-1059` matched. It exports posting-ready settlement and debit journals, a nine-invariant close certificate, and the complete unified exception list. Imported files are honestly reported with operational coverage only because they have no evaluator truth labels.
 
 ## GitHub URL
 
@@ -44,13 +44,17 @@ Script: [`PITCH.md`](PITCH.md)
 
 **8. Preventing partial settlement posting.** A single matched payment is not enough to journal a settlement. Every payment component must link exactly once, the UTR must be non-empty and consistent, one bank credit must prove the net amount, and no component exception may remain. Orphan rows block the certificate.
 
+**9. Preventing refund double-counting.** Refunds and chargebacks in this challenge are separately bank-funded. They are excluded from the settlement-net equation, allocated against one unique bank debit, and journaled once. A dedicated regression proves ₹1,000 settlement cash less a ₹200 refund closes at ₹800—not ₹600.
+
+**10. Making privacy claims testable.** Default proof and exception exports are allowlisted and pseudonymized. Sentinel tests prove that filenames, row/order/transaction IDs, UTRs, narrations, model text, and evidence explanations do not leak. The optional full packet uses AES-256-GCM with authenticated metadata, random salt/IV, a 128-bit tag, and an internal SHA-256 payload check.
+
 ## Final checklist
 
 - [ ] Personal details, college, graduation year, in-person availability, and internship duration are correct.
 - [ ] Track 04 is selected.
 - [ ] Public repository URL works while signed out.
 - [ ] Five-minute video URL works while signed out and is no longer than five minutes.
-- [ ] Hosted demo URL, if included, works in an incognito window.
+- [ ] If the hosted demo remains owner-only, grant judges access or rely on the public repository/video; do not claim it works in incognito.
 - [ ] Results in the video match `artifacts/metrics.json`.
 - [ ] The video shows one difficult verified match and one deliberate abstention.
 - [ ] The video shows the raw-file preflight and explicitly distinguishes imported operational metrics from benchmark accuracy.

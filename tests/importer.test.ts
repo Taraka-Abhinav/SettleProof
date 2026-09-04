@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   buildImportManifest,
   demoBatchCsvs,
   importInput,
   parseInrToPaise,
+  parseBatchPack,
+  parseSourceBytes,
   parseSourceText,
+  templatePackJson,
   type ImportBundle,
 } from '../lib/importer.ts';
 import {
@@ -42,11 +46,11 @@ void test('money normalization uses integer paise and rejects unsafe formats', (
   assert.equal(parseInrToPaise('-10.00'), null);
 });
 
-void test('the 221-row example files traverse the real importer and preserve outcomes', async () => {
+void test('the 223-row example files traverse the real importer and preserve outcomes', async () => {
   const bundle = await parsedDemoBundle();
   const input = importInput(bundle);
   assert.ok(input);
-  assert.equal(input.ledger.length + input.gateway.length + input.bank.length, 221);
+  assert.equal(input.ledger.length + input.gateway.length + input.bank.length, 223);
   const run = runImportedClose(input, {
     id: 'IMPORT-DEMO',
     period: '2026-08',
@@ -135,11 +139,30 @@ void test('import manifest binds file hashes, mappings, counts, and canonical in
   const bundle = await parsedDemoBundle();
   const manifest = await buildImportManifest(bundle, '2026-08-31', 0);
   assert.match(manifest.inputSha256, /^[a-f0-9]{64}$/);
+  assert.match(manifest.manifestSha256, /^[a-f0-9]{64}$/);
   assert.equal(manifest.sources.length, 3);
-  assert.equal(manifest.sourceRows, 221);
-  assert.equal(manifest.acceptedRows, 221);
+  assert.equal(manifest.sourceRows, 223);
+  assert.equal(manifest.acceptedRows, 223);
   assert.equal(manifest.rejectedRows, 0);
   assert.ok(manifest.sources.every((source) => /^[a-f0-9]{64}$/.test(source.sha256)));
+
+  const input = importInput(bundle)!;
+  const bound = runImportedClose(input, {
+    id: 'IMPORT-MANIFEST-BOUND',
+    period: '2026-08',
+    generatedAt: manifest.createdAt,
+    cutoffDate: manifest.cutoffDate,
+    sourceManifestSha256: manifest.manifestSha256,
+  });
+  const tampered = runImportedClose(input, {
+    id: 'IMPORT-MANIFEST-BOUND',
+    period: '2026-08',
+    generatedAt: manifest.createdAt,
+    cutoffDate: manifest.cutoffDate,
+    sourceManifestSha256: '0'.repeat(64),
+  });
+  assert.equal(bound.certificate.sourceManifestSha256, manifest.manifestSha256);
+  assert.notEqual(bound.certificate.inputFingerprint, tampered.certificate.inputFingerprint);
 });
 
 void test('imported target and journal IDs remain stable when rows are reordered', async () => {
@@ -175,4 +198,39 @@ void test('exception CSV neutralizes spreadsheet formulas', () => {
   const decision = run.decisions.find((item) => item.status === 'exception')!;
   const csv = exceptionsToCsv([{ ...decision, orderId: '=HYPERLINK("bad")' }]);
   assert.match(csv, /"'=HYPERLINK\(""bad""\)"/);
+});
+
+void test('source digests bind original bytes and malformed UTF-8 is rejected', async () => {
+  const bytes = new TextEncoder().encode(
+    '\uFEFForder_id,booked_at,amount_inr,currency\r\nORDER-1,2026-08-31,10.00,INR\r\n',
+  );
+  const parsed = await parseSourceBytes('ledger', 'ledger.csv', bytes);
+  assert.equal(
+    parsed.sha256,
+    createHash('sha256').update(bytes).digest('hex'),
+  );
+  await assert.rejects(
+    parseSourceBytes('ledger', 'bad.csv', Uint8Array.from([0x80])),
+    /valid UTF-8/,
+  );
+  await assert.rejects(
+    parseSourceBytes('ledger', 'bad.csv', Uint8Array.from([0x81])),
+    /valid UTF-8/,
+  );
+});
+
+void test('a JSON batch pack is parsed once and yields all three sources', { concurrency: false }, async () => {
+  const originalParse = JSON.parse;
+  let calls = 0;
+  JSON.parse = ((...args: Parameters<typeof JSON.parse>) => {
+    calls += 1;
+    return originalParse(...args);
+  }) as typeof JSON.parse;
+  try {
+    const bundle = await parseBatchPack('batch.json', templatePackJson());
+    assert.equal(calls, 1);
+    assert.ok(importInput(bundle));
+  } finally {
+    JSON.parse = originalParse;
+  }
 });

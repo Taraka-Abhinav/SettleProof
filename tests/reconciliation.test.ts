@@ -4,16 +4,21 @@ import {
   DEMO_SEED,
   generateSyntheticBatch,
   reconcileBatch,
+  reconcileIndependentDebits,
   runClose,
+  runImportedClose,
+  type BankRow,
+  type GatewayRow,
+  type LedgerRow,
 } from '../lib/reconciliation.ts';
 import { runAdversarialControlSuite } from '../lib/control-suite.ts';
 
 void test('the demo batch exceeds the 50-record bar with exact source counts', () => {
   const batch = generateSyntheticBatch(DEMO_SEED);
   assert.equal(batch.ledger.length, 84);
-  assert.equal(batch.gateway.length, 92);
-  assert.equal(batch.bank.length, 45);
-  assert.equal(batch.ledger.length + batch.gateway.length + batch.bank.length, 221);
+  assert.equal(batch.gateway.length, 93);
+  assert.equal(batch.bank.length, 46);
+  assert.equal(batch.ledger.length + batch.gateway.length + batch.bank.length, 223);
 });
 
 void test('every target reaches exactly one terminal state with no silent drop', () => {
@@ -58,11 +63,87 @@ void test('untrusted narration cannot bypass the deterministic verifier', () => 
   );
 });
 
-void test('all seven close-certificate invariants pass for the safely posting-ready subset', () => {
+void test('all nine close-certificate invariants pass for the safely posting-ready subset', () => {
   const run = runClose(DEMO_SEED);
   assert.equal(run.certificate.status, 'READY_WITH_EXCEPTIONS');
-  assert.equal(run.certificate.invariants.length, 7);
+  assert.equal(run.certificate.invariants.length, 9);
   assert.ok(run.certificate.invariants.every((invariant) => invariant.passed));
+});
+
+void test('separately funded refunds affect settlement cash and journals exactly once', () => {
+  const ledger: LedgerRow[] = [{
+    id: 'L-1', orderId: 'ORDER-1', receipt: 'R-1', bookedAt: '2026-08-30', customer: 'A', amountPaise: 100_000, settlementId: 'SETL-1', currency: 'INR',
+  }];
+  const gateway: GatewayRow[] = [
+    { id: 'PAY-1', type: 'payment', orderId: 'ORDER-1', description: 'Payment', createdAt: '2026-08-30', settlementId: 'SETL-1', settlementUtr: 'UTR-SETL-1', creditPaise: 100_000, debitPaise: 0, feePaise: 0, taxPaise: 0, currency: 'INR' },
+    { id: 'REF-1', type: 'refund', orderId: 'ORDER-1', description: 'Refund', createdAt: '2026-08-30', settlementId: 'SETL-1', settlementUtr: 'UTR-REF-1', creditPaise: 0, debitPaise: 20_000, feePaise: 0, taxPaise: 0, currency: 'INR' },
+  ];
+  const bank: BankRow[] = [
+    { id: 'BANK-SETL-1', postedAt: '2026-08-31', direction: 'credit', amountPaise: 100_000, utr: 'UTR-SETL-1', narration: 'SETL-1', kind: 'settlement', currency: 'INR' },
+    { id: 'BANK-REF-1', postedAt: '2026-08-30', direction: 'debit', amountPaise: 20_000, utr: 'UTR-REF-1', narration: 'REFUND ORDER-1', kind: 'operating', currency: 'INR' },
+  ];
+  const run = runImportedClose(
+    { ledger, gateway, bank },
+    { id: 'FUNDING-MODEL', period: '2026-08', generatedAt: '2026-08-31T12:00:00Z', cutoffDate: '2026-08-31' },
+  );
+  assert.equal(run.journals.length, 1);
+  assert.equal(run.journals[0].lines[0].debitPaise, 100_000);
+  assert.equal(run.debitJournals.length, 1);
+  assert.equal(run.cash.verifiedSettlementsPaise, 100_000);
+  assert.equal(run.cash.verifiedRefundDebitsPaise, 20_000);
+  assert.equal(run.cash.closingBankPaise, 80_000);
+  assert.equal(run.cash.unresolvedBankMovementPaise, 0);
+  assert.ok(run.certificate.invariants.every((invariant) => invariant.passed));
+});
+
+void test('independent debits reject pre-event, duplicate, and reused bank evidence', () => {
+  const event = (id: string, type: 'refund' | 'chargeback', orderId: string): GatewayRow => ({
+    id, type, orderId, description: id, createdAt: '2026-08-30', settlementId: 'SETL-1', settlementUtr: 'UTR-X', creditPaise: 0, debitPaise: 25_000, feePaise: 0, taxPaise: 0, currency: 'INR',
+  });
+  const debit = (id: string, narration: string, postedAt = '2026-08-30'): BankRow => ({
+    id, postedAt, direction: 'debit', amountPaise: 25_000, utr: 'UTR-X', narration, kind: 'operating', currency: 'INR',
+  });
+
+  const preEvent = reconcileIndependentDebits(
+    { gateway: [event('REF-PRE', 'refund', 'ORDER-PRE')], bank: [debit('B-PRE', 'ORDER-PRE', '2026-08-29')] },
+    '2026-08-31',
+  );
+  assert.equal(preEvent.refundChecks[0].status, 'exception');
+  assert.equal(preEvent.refundChecks[0].type, 'refund_missing_bank_debit');
+
+  const duplicate = reconcileIndependentDebits(
+    { gateway: [event('REF-DUP', 'refund', 'ORDER-DUP')], bank: [debit('B-1', 'ORDER-DUP'), debit('B-2', 'ORDER-DUP')] },
+    '2026-08-31',
+  );
+  assert.equal(duplicate.refundChecks[0].type, 'refund_duplicate_bank_debit');
+  assert.deepEqual(duplicate.refundChecks[0].bankRowIds, ['B-1', 'B-2']);
+
+  const reused = reconcileIndependentDebits(
+    {
+      gateway: [event('REF-REUSE', 'refund', 'ORDER-A'), event('CHB-REUSE', 'chargeback', 'ORDER-B')],
+      bank: [debit('B-SHARED', 'ORDER-A ORDER-B')],
+    },
+    '2026-08-31',
+  );
+  assert.equal(reused.refundChecks[0].type, 'refund_bank_evidence_reused');
+  assert.equal(reused.chargebackChecks[0].type, 'chargeback_bank_evidence_reused');
+});
+
+void test('cumulative over-refunds and chargeback amount or UTR failures are explicit', () => {
+  const payment: GatewayRow = { id: 'PAY-O', type: 'payment', orderId: 'ORDER-O', description: 'payment', createdAt: '2026-08-28', settlementId: 'SETL-O', settlementUtr: 'UTR-PAY', creditPaise: 100_000, debitPaise: 0, feePaise: 0, taxPaise: 0, currency: 'INR' };
+  const refunds: GatewayRow[] = [
+    { ...payment, id: 'REF-A', type: 'refund', createdAt: '2026-08-29', settlementUtr: 'UTR-A', creditPaise: 0, debitPaise: 60_000 },
+    { ...payment, id: 'REF-B', type: 'refund', createdAt: '2026-08-30', settlementUtr: 'UTR-B', creditPaise: 0, debitPaise: 60_000 },
+  ];
+  const refundBanks: BankRow[] = refunds.map((refund) => ({ id: `B-${refund.id}`, postedAt: refund.createdAt, direction: 'debit', amountPaise: refund.debitPaise, utr: refund.settlementUtr, narration: refund.id, kind: 'operating', currency: 'INR' }));
+  const over = reconcileIndependentDebits({ gateway: [payment, ...refunds], bank: refundBanks }, '2026-08-31');
+  assert.ok(over.refundChecks.every((check) => check.type === 'refund_exceeds_original_payment'));
+
+  const chargeback: GatewayRow = { ...payment, id: 'CHB-1', type: 'chargeback', orderId: 'ORDER-C', createdAt: '2026-08-30', settlementUtr: 'UTR-CHB', creditPaise: 0, debitPaise: 25_000 };
+  const amountMismatch = reconcileIndependentDebits({ gateway: [chargeback], bank: [{ id: 'B-CHB', postedAt: '2026-08-30', direction: 'debit', amountPaise: 25_001, utr: 'UTR-CHB', narration: 'ORDER-C', kind: 'operating', currency: 'INR' }] }, '2026-08-31');
+  assert.equal(amountMismatch.chargebackChecks[0].type, 'chargeback_amount_mismatch');
+  const utrMismatch = reconcileIndependentDebits({ gateway: [chargeback], bank: [{ id: 'B-CHB', postedAt: '2026-08-30', direction: 'debit', amountPaise: 25_000, utr: 'WRONG', narration: 'ORDER-C', kind: 'operating', currency: 'INR' }] }, '2026-08-31');
+  assert.equal(utrMismatch.chargebackChecks[0].type, 'chargeback_utr_mismatch');
 });
 
 void test('competing ERP targets quarantine one gateway row without order bias', () => {
@@ -175,8 +256,8 @@ void test('ORDER-1059 payment can match while REF-1059 independently fails refun
 
 void test('all adversarial finance controls, including refund attacks, pass', () => {
   const suite = runAdversarialControlSuite();
-  assert.equal(suite.total, 19);
-  assert.equal(suite.passed, 19);
+  assert.equal(suite.total, 28);
+  assert.equal(suite.passed, 28);
   assert.equal(suite.failed, 0);
   assert.equal(suite.unsafeWrites, 0);
 });

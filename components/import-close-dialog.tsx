@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -35,8 +35,9 @@ import {
   demoBatchCsvs,
   importInput,
   normalizeImportDate,
-  parseBatchPack,
+  parseBatchPackBytes,
   parseInrToPaise,
+  parseSourceBytes,
   parseSourceText,
   suggestedCutoff,
   templatePackJson,
@@ -104,11 +105,13 @@ function SourceCard({
   source,
   result,
   busy,
+  disabled,
   onFile,
 }: {
   source: ImportSource;
   result: SourceImportResult | null;
   busy: boolean;
+  disabled: boolean;
   onFile: (file: File) => void;
 }) {
   const meta = sourceMeta[source];
@@ -159,7 +162,7 @@ function SourceCard({
         <input
           accept=".csv,.json,text/csv,application/json"
           className="sr-only"
-          disabled={busy}
+          disabled={disabled}
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) onFile(file);
@@ -185,6 +188,8 @@ export function ImportCloseDialog({
   const [cutoffDate, setCutoffDate] = useState('2026-08-31');
   const [openingCash, setOpeningCash] = useState('0.00');
   const [running, setRunning] = useState(false);
+  const readLockRef = useRef(false);
+  const generationRef = useRef(0);
 
   const sources = useMemo(
     () => [bundle.ledger, bundle.gateway, bundle.bank].filter(
@@ -204,44 +209,75 @@ export function ImportCloseDialog({
   const validPolicy = Boolean(normalizeImportDate(cutoffDate)) && openingPaise !== null;
   const ready = allFilesPresent && errors.length === 0 && Boolean(importInput(bundle)) && validPolicy;
 
-  const setSourceFile = async (source: ImportSource, file: File) => {
+  const beginRead = (
+    source: ImportSource | 'pack',
+    clear: (current: ImportBundle) => ImportBundle,
+  ) => {
+    if (readLockRef.current) return null;
+    readLockRef.current = true;
+    const token = generationRef.current + 1;
+    generationRef.current = token;
     setFileError('');
-    if (file.size > 10 * 1024 * 1024) {
-      setFileError(`${file.name} exceeds the 10 MB per-file limit.`);
-      return;
-    }
+    setBundle((current) => clear(current));
     setBusySource(source);
+    return token;
+  };
+
+  const finishRead = (token: number) => {
+    if (generationRef.current !== token) return;
+    readLockRef.current = false;
+    setBusySource(null);
+  };
+
+  const setSourceFile = async (source: ImportSource, file: File) => {
+    const token = beginRead(source, (current) => ({ ...current, [source]: null }));
+    if (token === null) return;
     try {
-      const result = await parseSourceText(source, file.name, await file.text());
-      const next = { ...bundle, [source]: result };
-      setBundle(next);
-      const suggestion = suggestedCutoff(next);
-      if (suggestion) setCutoffDate(suggestion);
+      if (file.size > 10 * 1024 * 1024) {
+        setFileError(`${file.name} exceeds the 10 MB per-file limit.`);
+        return;
+      }
+      const result = await parseSourceBytes(source, file.name, await file.arrayBuffer());
+      if (generationRef.current === token) {
+        setBundle((current) => ({ ...current, [source]: result }));
+        const suggestion = suggestedCutoff({ ...bundle, [source]: result });
+        if (suggestion) setCutoffDate(suggestion);
+      }
+    } catch {
+      if (generationRef.current === token) {
+        setFileError(`${sourceMeta[source].label} could not be read as a valid UTF-8 CSV or JSON file. The previous file was cleared.`);
+      }
     } finally {
-      setBusySource(null);
+      finishRead(token);
     }
   };
 
   const setPackFile = async (file: File) => {
-    setFileError('');
-    if (file.size > 25 * 1024 * 1024) {
-      setFileError(`${file.name} exceeds the 25 MB JSON-pack limit.`);
-      return;
-    }
-    setBusySource('pack');
+    const token = beginRead('pack', () => emptyBundle);
+    if (token === null) return;
     try {
-      const next = await parseBatchPack(file.name, await file.text());
-      setBundle(next);
-      const suggestion = suggestedCutoff(next);
-      if (suggestion) setCutoffDate(suggestion);
+      if (file.size > 25 * 1024 * 1024) {
+        setFileError(`${file.name} exceeds the 25 MB JSON-pack limit.`);
+        return;
+      }
+      const next = await parseBatchPackBytes(file.name, await file.arrayBuffer());
+      if (generationRef.current === token) {
+        setBundle(next);
+        const suggestion = suggestedCutoff(next);
+        if (suggestion) setCutoffDate(suggestion);
+      }
+    } catch {
+      if (generationRef.current === token) {
+        setFileError('The JSON pack could not be read as valid UTF-8 JSON. The previous batch was cleared.');
+      }
     } finally {
-      setBusySource(null);
+      finishRead(token);
     }
   };
 
   const loadDemoFiles = async () => {
-    setBusySource('pack');
-    setFileError('');
+    const token = beginRead('pack', () => emptyBundle);
+    if (token === null) return;
     try {
       const csvs = demoBatchCsvs(sampleRun.batch);
       const next: ImportBundle = {
@@ -249,13 +285,33 @@ export function ImportCloseDialog({
         gateway: await parseSourceText('gateway', 'razorpay-combined-recon.csv', csvs.gateway),
         bank: await parseSourceText('bank', 'hdfc-bank-statement.csv', csvs.bank),
       };
-      setBundle(next);
-      setCutoffDate(suggestedCutoff(next) || '2026-08-31');
-      setOpeningCash('4182630.45');
-      setStep(1);
+      if (generationRef.current === token) {
+        setBundle(next);
+        setCutoffDate(suggestedCutoff(next) || '2026-08-31');
+        setOpeningCash('4182630.45');
+        setStep(1);
+      }
+    } catch {
+      if (generationRef.current === token) {
+        setFileError('The example files could not be prepared. No stale batch was retained.');
+      }
     } finally {
-      setBusySource(null);
+      finishRead(token);
     }
+  };
+
+  const setDialogOpen = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      generationRef.current += 1;
+      readLockRef.current = false;
+      setBusySource(null);
+      setBundle(emptyBundle);
+      setFileError('');
+      setStep(0);
+      setOpeningCash('0.00');
+      setCutoffDate('2026-08-31');
+    }
+    onOpenChange(nextOpen);
   };
 
   const executeClose = async () => {
@@ -271,17 +327,18 @@ export function ImportCloseDialog({
         generatedAt: manifest.createdAt,
         cutoffDate,
         openingCashPaise: openingPaise,
+        sourceManifestSha256: manifest.manifestSha256,
       });
       onComplete({ run, manifest, label: 'Imported local batch' });
       setStep(3);
-      onOpenChange(false);
+      setDialogOpen(false);
     } finally {
       setRunning(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setDialogOpen}>
       <DialogContent className="max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 sm:max-w-4xl">
         <DialogHeader className="border-b border-[#dfe5df] bg-[#f8faf7] p-5 pr-12 md:p-6">
           <div className="flex flex-wrap items-center gap-2">
@@ -315,6 +372,7 @@ export function ImportCloseDialog({
                 {(['ledger', 'gateway', 'bank'] as const).map((source) => (
                   <SourceCard
                     busy={busySource === source}
+                    disabled={busySource !== null}
                     key={source}
                     onFile={(file) => void setSourceFile(source, file)}
                     result={bundle[source]}
@@ -388,7 +446,7 @@ export function ImportCloseDialog({
                         </div>
                       ))}
                     </div>
-                    {!source.mapping.id && <p className="mt-3 text-[10px] leading-4 text-[#7b6a51]">Row IDs will be deterministically assigned from source and line number.</p>}
+                    {!source.mapping.id && <p className="mt-3 text-[10px] leading-4 text-[#7b6a51]">Row IDs will be deterministically derived from normalized row content.</p>}
                     {source.source === 'bank' && !source.mapping.kind && <p className="mt-1 text-[10px] leading-4 text-[#7b6a51]">Settlement kind will be derived from direction and UTR evidence.</p>}
                   </section>
                 ))}
@@ -485,7 +543,7 @@ export function ImportCloseDialog({
             </Button>
           )}
           <div className="ml-auto flex gap-2">
-            <Button disabled={running} onClick={() => onOpenChange(false)} variant="outline">Cancel</Button>
+            <Button disabled={running} onClick={() => setDialogOpen(false)} variant="outline">Cancel</Button>
             {step === 0 && (
               <Button className="bg-[#17281f] text-white" disabled={!allFilesPresent || busySource !== null} onClick={() => setStep(1)}>
                 Review mapping <ArrowRight />

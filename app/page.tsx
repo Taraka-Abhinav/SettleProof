@@ -73,10 +73,16 @@ import {
   formatPercent,
   runClose,
   runImportedClose,
+  type CloseException,
   type CloseRun,
   type MatchMethod,
   type ReconciliationDecision,
 } from '@/lib/reconciliation';
+import {
+  buildRedactedProof,
+  encryptJsonWithPassphrase,
+  redactedExceptionsToCsv,
+} from '@/lib/proof-export';
 
 type View = 'overview' | 'evidence' | 'exceptions' | 'benchmark';
 type Phase = 'complete' | 'running';
@@ -130,54 +136,6 @@ function downloadText(filename: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-function bytesToBase64(bytes: Uint8Array) {
-  let binary = '';
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
-}
-
-async function encryptJsonWithPassphrase(payload: unknown, passphrase: string) {
-  const encoder = new TextEncoder();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(passphrase),
-    'PBKDF2',
-    false,
-    ['deriveKey'],
-  );
-  const key = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 310_000 },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt'],
-  );
-  const ciphertext = new Uint8Array(
-    await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      key,
-      encoder.encode(JSON.stringify(payload)),
-    ),
-  );
-  return JSON.stringify(
-    {
-      schema: 'settleproof-encrypted-export/v1',
-      cipher: 'AES-256-GCM',
-      kdf: 'PBKDF2-HMAC-SHA-256',
-      iterations: 310_000,
-      salt: bytesToBase64(salt),
-      iv: bytesToBase64(iv),
-      ciphertext: bytesToBase64(ciphertext),
-    },
-    null,
-    2,
-  );
-}
-
 function MetricCard({
   label,
   value,
@@ -224,7 +182,7 @@ function SourceFlow({ run }: { run: CloseRun }) {
     {
       label: 'Gateway recon',
       value: `${run.batch.gateway.length} rows`,
-      detail: 'Payments, fees & refunds',
+      detail: 'Payments, fees, refunds & chargebacks',
       icon: Database,
     },
     {
@@ -288,9 +246,11 @@ function CloseOverview({
   const matchedValue = run.decisions
     .filter((item) => item.status === 'matched')
     .reduce((sum, item) => sum + item.amountPaise, 0);
-  const nonRefundSourceExceptions = Math.max(
+  const nonIndependentSourceExceptions = Math.max(
     0,
-    run.metrics.sourceExceptions - run.metrics.refundExceptions,
+    run.metrics.sourceExceptions -
+      run.metrics.refundExceptions -
+      run.metrics.chargebackExceptions,
   );
   const exceptionBreakdown = [
     run.metrics.unresolved > 0
@@ -299,8 +259,11 @@ function CloseOverview({
     run.metrics.refundExceptions > 0
       ? `${run.metrics.refundExceptions} refund check${run.metrics.refundExceptions === 1 ? '' : 's'}`
       : null,
-    nonRefundSourceExceptions > 0
-      ? `${nonRefundSourceExceptions} source row${nonRefundSourceExceptions === 1 ? '' : 's'}`
+    run.metrics.chargebackExceptions > 0
+      ? `${run.metrics.chargebackExceptions} chargeback check${run.metrics.chargebackExceptions === 1 ? '' : 's'}`
+      : null,
+    nonIndependentSourceExceptions > 0
+      ? `${nonIndependentSourceExceptions} source row${nonIndependentSourceExceptions === 1 ? '' : 's'}`
       : null,
   ].filter(Boolean).join(', ');
   const exceptionIds = run.exceptions.map((item) =>
@@ -309,6 +272,18 @@ function CloseOverview({
       ?? item.targetId?.replace('target_', 'T-')
       ?? item.id,
   );
+  const explainedClosingPaise =
+    run.cash.openingPaise +
+    run.cash.verifiedSettlementsPaise -
+    run.cash.verifiedRefundDebitsPaise -
+    run.cash.verifiedChargebackDebitsPaise +
+    run.cash.otherBankMovementPaise +
+    run.cash.unresolvedBankMovementPaise;
+  const bridgeDeltaPaise = run.cash.closingBankPaise - explainedClosingPaise;
+  const independentChecks = run.metrics.refundChecks + run.metrics.chargebackChecks;
+  const independentMatches = run.metrics.refundMatches + run.metrics.chargebackMatches;
+  const independentExceptions =
+    run.metrics.refundExceptions + run.metrics.chargebackExceptions;
 
   return (
     <div className="space-y-5">
@@ -423,7 +398,7 @@ function CloseOverview({
               <LockKeyhole className="mt-0.5 size-4 shrink-0 text-[#f4bd69]" />
               <p className="text-xs leading-5 text-white/60">
                 {run.metrics.totalExceptions === 0
-                  ? 'No payment, refund, or source exceptions remain write-blocked.'
+                  ? 'No payment, refund, chargeback, or source exceptions remain write-blocked.'
                   : `${run.metrics.totalExceptions} exception${run.metrics.totalExceptions === 1 ? '' : 's'} worth ${formatInr(run.cash.unresolvedExposurePaise)} remain write-blocked (${exceptionBreakdown}).`}
               </p>
             </div>
@@ -438,7 +413,7 @@ function CloseOverview({
           <MetricCard detail="₹-weighted, hard rows included" icon={WalletCards} label="Value coverage" value={formatPercent(run.metrics.valueWeightedCoverage)} />
           <MetricCard detail={`${run.metrics.unresolved} correctly surfaced / ${run.metrics.unresolved} injected`} icon={TriangleAlert} label="Exception recall" tone="amber" value={formatPercent(run.metrics.exceptionRecall ?? 0, 0)} />
           <MetricCard detail="Financially unsafe writes" icon={ShieldCheck} label="False auto-closes" tone="green" value={String(run.metrics.falseAutoCloses)} />
-          <MetricCard detail={`${run.metrics.refundExceptions} independently held`} icon={RefreshCw} label="Refund debits" tone={run.metrics.refundExceptions ? 'amber' : 'green'} value={`${run.metrics.refundMatches}/${run.metrics.refundChecks}`} />
+          <MetricCard detail={`${independentExceptions} independently held`} icon={RefreshCw} label="Refund + chargeback debits" tone={independentExceptions ? 'amber' : 'green'} value={`${independentMatches}/${independentChecks}`} />
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -447,7 +422,7 @@ function CloseOverview({
           <MetricCard detail="Every accepted row has a recorded disposition" icon={Layers3} label="Rows classified" tone={run.dispositions.some((item) => item.disposition === 'unclassified') ? 'amber' : 'green'} value={`${run.dispositions.filter((item) => item.disposition !== 'unclassified').length}/${run.metrics.sourceRows}`} />
           <MetricCard detail="Only complete settlements can post" icon={ReceiptText} label="Balanced journals" tone="green" value={String(run.journals.filter((journal) => journal.balanced).length)} />
           <MetricCard detail="Accuracy remains benchmark-only" icon={ShieldCheck} label="Verifier invariants" tone={passedInvariants === run.certificate.invariants.length ? 'green' : 'amber'} value={`${passedInvariants}/${run.certificate.invariants.length}`} />
-          <MetricCard detail={`${run.metrics.refundExceptions} independently held`} icon={RefreshCw} label="Refund debits" tone={run.metrics.refundExceptions ? 'amber' : 'green'} value={`${run.metrics.refundMatches}/${run.metrics.refundChecks}`} />
+          <MetricCard detail={`${independentExceptions} independently held`} icon={RefreshCw} label="Refund + chargeback debits" tone={independentExceptions ? 'amber' : 'green'} value={`${independentMatches}/${independentChecks}`} />
         </div>
       )}
 
@@ -462,7 +437,7 @@ function CloseOverview({
             </div>
             <Badge variant="outline" className="border-[#d5ddd6] text-[#65736b]">INR · as of {cutoffDate}</Badge>
           </div>
-          <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
             <div>
               <p className="text-[11px] text-[#5e6c64]">Opening cash</p>
               <p className="mt-1 text-lg font-semibold tabular-nums">{formatInr(run.cash.openingPaise, true)}</p>
@@ -475,21 +450,40 @@ function CloseOverview({
             </div>
             <div>
               <div className="flex items-center gap-1 text-[11px] text-[#5e6c64]">
+                <ArrowDown className="size-3" /> Verified refunds
+              </div>
+              <p className="mt-1 text-lg font-semibold tabular-nums">−{formatInr(run.cash.verifiedRefundDebitsPaise, true)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1 text-[11px] text-[#5e6c64]">
+                <ArrowDown className="size-3" /> Verified chargebacks
+              </div>
+              <p className="mt-1 text-lg font-semibold tabular-nums">−{formatInr(run.cash.verifiedChargebackDebitsPaise, true)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1 text-[11px] text-[#5e6c64]">
                 {run.cash.otherBankMovementPaise < 0 ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />}
                 Operating movement
               </div>
               <p className="mt-1 text-lg font-semibold tabular-nums">{formatInr(run.cash.otherBankMovementPaise, true)}</p>
             </div>
-            <div className="rounded-lg bg-[#edf8f0] px-3 py-2.5">
+            <div>
+              <div className="flex items-center gap-1 text-[11px] text-[#9a691f]">
+                {run.cash.unresolvedBankMovementPaise < 0 ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />}
+                Unresolved bank movement
+              </div>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-[#794d0b]">{formatInr(run.cash.unresolvedBankMovementPaise, true)}</p>
+            </div>
+            <div className="col-span-2 rounded-lg bg-[#edf8f0] px-3 py-2.5 sm:col-span-1">
               <p className="text-[11px] text-[#4c7459]">Closing bank cash</p>
               <p className="mt-1 text-lg font-semibold tabular-nums text-[#1e6538]">{formatInr(run.cash.closingBankPaise, true)}</p>
             </div>
           </div>
-          <div className="mt-6 grid gap-3 border-t border-[#e5e9e4] pt-5 sm:grid-cols-3">
-            <div className="rounded-lg bg-[#fff8ed] p-3">
-              <p className="text-[11px] text-[#9a691f]">Verified refund debits</p>
-              <p className="mt-1 font-semibold tabular-nums text-[#794d0b]">{formatInr(run.cash.verifiedRefundDebitsPaise)}</p>
-            </div>
+          <div className="mt-5 rounded-lg border border-[#d9e5dc] bg-[#f6faf6] px-3 py-2.5 text-xs text-[#4d6255]">
+            <p className="font-medium">Opening + settlements − refunds − chargebacks + operating + unresolved = closing</p>
+            <p className="mt-1 font-mono text-[10px] tabular-nums">Bridge delta: {formatInr(bridgeDeltaPaise)} · {bridgeDeltaPaise === 0 ? 'fully explained' : 'control failure'}</p>
+          </div>
+          <div className="mt-4 grid gap-3 border-t border-[#e5e9e4] pt-5 sm:grid-cols-3">
             <div className="rounded-lg bg-[#fff8ed] p-3">
               <p className="text-[11px] text-[#9a691f]">Confirmed cash in transit</p>
               <p className="mt-1 font-semibold tabular-nums text-[#794d0b]">{formatInr(run.cash.confirmedInTransitPaise)}</p>
@@ -497,6 +491,10 @@ function CloseOverview({
             <div className="rounded-lg bg-[#fff2ec] p-3">
               <p className="text-[11px] text-[#9c5c3d]">Duplicate-credit value under review</p>
               <p className="mt-1 font-semibold tabular-nums text-[#7d4025]">{formatInr(run.cash.underReviewPaise)}</p>
+            </div>
+            <div className="rounded-lg bg-[#f4f1ff] p-3">
+              <p className="text-[11px] text-[#6f5a98]">Total unresolved exposure</p>
+              <p className="mt-1 font-semibold tabular-nums text-[#58417f]">{formatInr(run.cash.unresolvedExposurePaise)}</p>
             </div>
           </div>
         </section>
@@ -508,15 +506,13 @@ function CloseOverview({
             </span>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6f637f]">Controller answer</p>
-              <p className="text-sm font-medium">“Why is reported cash short?”</p>
+              <p className="text-sm font-medium">“What explains closing cash?”</p>
             </div>
           </div>
           <p className="mt-5 text-sm leading-6 text-[#4d5d54]">
-            {isBenchmark
-              ? 'It is not an unexplained shortfall. The gap is split between a processed settlement not yet received and a duplicate UTR credit that cannot be posted twice. The remaining four cases are record-link failures, not bank cash.'
-              : `${run.journals.length} settlement journals cleared every posting gate. ${run.metrics.totalExceptions === 0
-                ? 'No payment, refund, or source exceptions remain held.'
-                : `${run.metrics.totalExceptions} exception${run.metrics.totalExceptions === 1 ? '' : 's'} worth ${formatInr(run.cash.unresolvedExposurePaise)} remain held with an evidence request and next action (${exceptionBreakdown}).`}`}
+            {`${run.journals.length} settlement journals and ${run.debitJournals.length} independent debit journals cleared every posting gate. The cash equation bridges with ${formatInr(bridgeDeltaPaise)} unexplained delta. ${run.cash.confirmedInTransitPaise ? `${formatInr(run.cash.confirmedInTransitPaise)} is confirmed in transit. ` : ''}${run.cash.underReviewPaise ? `${formatInr(run.cash.underReviewPaise)} of duplicate-credit evidence remains under review. ` : ''}${run.metrics.totalExceptions === 0
+              ? 'No payment, refund, chargeback, or source exceptions remain held.'
+              : `${run.metrics.totalExceptions} exception${run.metrics.totalExceptions === 1 ? '' : 's'} worth ${formatInr(run.cash.unresolvedExposurePaise)} remain held (${exceptionBreakdown}).`}`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {exceptionIds.map((id) => (
@@ -681,13 +677,13 @@ function ExceptionsView({
   run,
   reviewed,
   onSelect,
+  redactIdentifiers,
 }: {
   run: CloseRun;
   reviewed: Set<string>;
-  onSelect: (decision: ReconciliationDecision) => void;
+  onSelect: (exception: CloseException) => void;
+  redactIdentifiers: boolean;
 }) {
-  const exceptions = run.decisions.filter((item) => item.status === 'exception');
-  const sourceExceptions = run.exceptions.filter((item) => item.kind === 'source');
   return (
     <div className="space-y-5">
       <section className="grid overflow-hidden rounded-xl border border-[#efd5b1] bg-[#fffaf1] md:grid-cols-[1fr_auto]">
@@ -717,22 +713,6 @@ function ExceptionsView({
         </div>
       </section>
 
-      {sourceExceptions.length > 0 && (
-        <section className="rounded-xl border border-[#dce2db] bg-white p-5">
-          <h3 className="font-semibold">Refund and source exceptions</h3>
-          <p className="mt-1 text-xs text-[#65736b]">Independent checks stay visible even when the original payment matched.</p>
-          <div className="mt-4 space-y-2">
-            {sourceExceptions.map((item) => (
-              <div className="grid gap-2 rounded-lg border border-[#e3e7e2] p-3 text-xs sm:grid-cols-[1fr_auto_auto]" key={item.id}>
-                <div><p className="font-medium">{item.title}</p><p className="mt-1 text-[#65736b]">{item.source}:{item.rowId} · {item.type ?? item.reasonCode} · {item.explanation}</p></div>
-                <span>{item.ownerQueue} · {item.sla}</span>
-                <span className="font-semibold tabular-nums">{formatInr(item.amountPaise)}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="overflow-hidden rounded-xl border border-[#dce2db] bg-white">
         <Table>
           <TableHeader>
@@ -746,25 +726,33 @@ function ExceptionsView({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {exceptions.map((decision) => {
-              const failedGate = decision.gates.find((gate) => !gate.passed);
-              const isReviewed = reviewed.has(decision.targetId);
+            {run.exceptions.map((exception) => {
+              const targetDecision = exception.targetId
+                ? run.decisions.find((decision) => decision.targetId === exception.targetId)
+                : null;
+              const failedGate = targetDecision?.gates.find((gate) => !gate.passed);
+              const isReviewed = reviewed.has(exception.id);
+              const caseLabel =
+                exception.orderId ??
+                exception.transactionId ??
+                exception.rowId ??
+                exception.id;
               return (
-                <TableRow key={decision.targetId}>
+                <TableRow key={exception.id}>
                   <TableCell className="pl-4">
-                    <p className="font-medium">{decision.orderId}</p>
-                    <p className="font-mono text-[10px] text-[#616e66]">{decision.targetId}</p>
+                    <p className="font-medium">{caseLabel}</p>
+                    <p className="font-mono text-[10px] text-[#616e66]">{exception.id}</p>
                   </TableCell>
                   <TableCell className="max-w-[310px] whitespace-normal">
-                    <p className="text-sm font-medium text-[#4d3823]">{decision.title}</p>
-                    <p className="mt-1 line-clamp-1 text-[10px] text-[#665442]">{decision.reasonCode}</p>
+                    <p className="text-sm font-medium text-[#4d3823]">{exception.title}</p>
+                    <p className="mt-1 line-clamp-1 text-[10px] text-[#665442]">{exception.type ?? exception.reasonCode} · {exception.ownerQueue}</p>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-xs text-[#8d561a]">
-                      <AlertCircle className="size-3.5" /> {failedGate?.label ?? 'Evidence gate'}
+                      <AlertCircle className="size-3.5" /> {failedGate?.label ?? (exception.kind === 'source' ? 'Independent source control' : 'Evidence gate')}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">{formatInr(decision.amountPaise)}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{formatInr(exception.amountPaise)}</TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"
@@ -774,7 +762,7 @@ function ExceptionsView({
                     </Badge>
                   </TableCell>
                   <TableCell className="pr-4 text-right">
-                    <Button aria-label={`Inspect exception ${decision.orderId}`} onClick={() => onSelect(decision)} size="icon-sm" variant="ghost">
+                    <Button aria-label={`Inspect exception ${caseLabel}`} onClick={() => onSelect(exception)} size="icon-sm" variant="ghost">
                       <ArrowRight />
                     </Button>
                   </TableCell>
@@ -791,11 +779,21 @@ function ExceptionsView({
           <span>Maker/checker policy: review records context only; a fresh evidence-backed rerun is required before posting.</span>
         </div>
         <Button
-          onClick={() => downloadText('settleproof-exceptions.csv', closeExceptionsToCsv(run.exceptions), 'text/csv')}
+          onClick={() =>
+            downloadText(
+              redactIdentifiers
+                ? 'settleproof-redacted-exceptions.csv'
+                : 'settleproof-synthetic-exceptions.csv',
+              redactIdentifiers
+                ? redactedExceptionsToCsv(run)
+                : closeExceptionsToCsv(run.exceptions),
+              'text/csv',
+            )
+          }
           size="sm"
           variant="outline"
         >
-          <Download /> Export CSV
+          <Download /> {redactIdentifiers ? 'Export redacted CSV' : 'Export CSV'}
         </Button>
       </div>
     </div>
@@ -824,12 +822,31 @@ function BenchmarkView() {
         <Badge variant="outline" className="border-[#ccd8e4] bg-[#f5f9ff] text-[#496a8c]">Reproducible · npm run evaluate</Badge>
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <MetricCard detail={`${regression.rawRows.toLocaleString('en-IN')} seeded source rows`} icon={Fingerprint} label="Regression precision" tone="green" value={formatPercent(regression.precisionMean, 0)} />
         <MetricCard detail="Fixed scenarios; amounts and noise vary" icon={Gauge} label="Regression coverage" value={formatPercent(regression.coverageMean)} />
         <MetricCard detail={`${stress.latencyMs.p95.toFixed(1)} ms p95 full-close latency`} icon={Activity} label="Full-loop throughput" value={`${Math.round(stress.rowsPerSecond / 1000)}k/s`} />
         <MetricCard detail={`${stress.rows.toLocaleString('en-IN')} rows · ${stress.falseAutoCloses} false writes`} icon={ShieldCheck} label="Stress corpus" tone="green" value="50k+" />
+        <MetricCard detail="Deterministic finance attacks fail closed" icon={TriangleAlert} label="Adversarial controls" tone="green" value={`${benchmarkArtifact.adversarialControls.passed}/${benchmarkArtifact.adversarialControls.total}`} />
+        <MetricCard detail={`${regression.correctlySurfacedExceptions}/${regression.injectedExceptions} injected target breaks`} icon={FileCheck2} label="Exception coverage" tone="green" value={formatPercent(regression.aggregateExceptionRecall, 0)} />
       </div>
+
+      <section className="rounded-xl border border-[#dce2db] bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#5e6c64]">Per-control coverage</p>
+            <h3 className="mt-1 font-semibold">Every injected payment failure is measured</h3>
+          </div>
+          <Badge className="bg-[#e8f9ec] text-[#276e3f]">0 unsafe auto-closes</Badge>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {regression.exceptionCoverage.map((control) => (
+            <span className="rounded-lg border border-[#dce6dd] bg-[#f7faf7] px-3 py-2 text-[11px] text-[#506159]" key={control.reasonCode}>
+              <span className="font-mono">{control.reasonCode}</span> · <strong>{control.correctlySurfaced}/{control.injected}</strong>
+            </span>
+          ))}
+        </div>
+      </section>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
         <section className="rounded-xl border border-[#dce2db] bg-white p-5 md:p-6">
@@ -895,8 +912,8 @@ function BenchmarkView() {
             <h3 className="font-semibold">Machine-readable proof packet</h3>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-            {['metrics.json', 'exceptions.csv', 'matches.jsonl', 'dispositions.jsonl', 'run_manifest.json', 'close_certificate.json'].map((file) => (
-              <div className="rounded-lg border border-[#e0e5df] bg-[#fafbf9] px-3 py-2 font-mono text-[10px] text-[#65736b]" key={file}>{file}</div>
+            {['metrics.json', 'exceptions.csv', 'matches.jsonl', 'independent_debits.json', 'run_manifest.json', 'close_certificate.json'].map((file) => (
+              <a className="flex items-center justify-between rounded-lg border border-[#e0e5df] bg-[#fafbf9] px-3 py-2 font-mono text-[10px] text-[#65736b] hover:border-[#b9c8bc] hover:bg-white" download href={`/proof/${file}`} key={file}>{file}<Download className="size-3" /></a>
             ))}
           </div>
         </section>
@@ -1049,12 +1066,101 @@ function DecisionDialog({
   );
 }
 
+function ExceptionDialog({
+  exception,
+  run,
+  isReviewed,
+  onClose,
+  onReview,
+}: {
+  exception: CloseException | null;
+  run: CloseRun;
+  isReviewed: boolean;
+  onClose: () => void;
+  onReview: (exceptionId: string) => void;
+}) {
+  const targetDecision = exception?.targetId
+    ? run.decisions.find((decision) => decision.targetId === exception.targetId)
+    : null;
+  return (
+    <Dialog open={Boolean(exception)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0 sm:max-w-2xl">
+        {exception && (
+          <>
+            <DialogHeader className="border-b border-[#e1e6e0] p-5 pr-12">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-[#fff2dd] text-[#955a13]"><TriangleAlert /> Posting blocked</Badge>
+                <Badge variant="outline">{exception.ownerQueue} · {exception.sla}</Badge>
+                <span className="font-mono text-[10px] text-[#616e66]">{exception.id}</span>
+              </div>
+              <DialogTitle className="mt-3 text-xl tracking-[-0.025em]">{exception.title}</DialogTitle>
+              <DialogDescription>{exception.explanation}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-5 p-5">
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border border-[#e0e5df] bg-[#fafbf9] p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-[#616e66]">Exception type</p>
+                  <p className="mt-2 break-words text-sm font-medium">{exception.type ?? exception.reasonCode}</p>
+                </div>
+                <div className="rounded-lg border border-[#e0e5df] bg-[#fafbf9] p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-[#616e66]">Exposure</p>
+                  <p className="mt-2 text-sm font-medium tabular-nums">{formatInr(exception.amountPaise)}</p>
+                  <p className="mt-1 text-xs text-[#68766e]">{exception.materiality} materiality</p>
+                </div>
+                <div className="rounded-lg border border-[#e0e5df] bg-[#fafbf9] p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-[#616e66]">Evidence reference</p>
+                  <p className="mt-2 truncate text-sm font-medium">{exception.transactionId ?? exception.rowId ?? exception.targetId ?? 'Unlinked'}</p>
+                  <p className="mt-1 truncate text-xs text-[#68766e]">{exception.settlementUtr || exception.settlementId || 'No settlement reference'}</p>
+                </div>
+              </div>
+              {targetDecision && (
+                <section>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#5e6c64]">Failed verifier gates</p>
+                  <div className="mt-3 space-y-2">
+                    {targetDecision.gates.filter((gate) => !gate.passed).map((gate) => (
+                      <div className="rounded-lg border border-[#efd7b9] bg-[#fff8ec] p-3" key={gate.label}>
+                        <p className="text-sm font-medium text-[#8b551a]">{gate.label}</p>
+                        <p className="mt-1 text-xs text-[#725b40]">{gate.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-[#fff5e8] p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9b641f]">Missing evidence</p>
+                  <p className="mt-2 text-sm leading-5 text-[#71522e]">{exception.missingEvidence}</p>
+                </div>
+                <div className="rounded-lg bg-[#f3f6f2] p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#66766d]">Safest next action</p>
+                  <p className="mt-2 text-sm leading-5 text-[#4f5e56]">{exception.nextAction}</p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="mx-0 mb-0 px-5">
+              <Button
+                className={isReviewed ? '' : 'bg-[#17281f] text-white'}
+                disabled={isReviewed}
+                onClick={() => onReview(exception.id)}
+              >
+                {isReviewed ? <Check /> : <FileCheck2 />}
+                {isReviewed ? 'Marked reviewed' : 'Mark reviewed'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Home() {
   const [run, setRun] = useState<CloseRun>(benchmarkRun);
   const [view, setView] = useState<View>('overview');
   const [phase, setPhase] = useState<Phase>('complete');
   const [stage, setStage] = useState(3);
   const [selected, setSelected] = useState<ReconciliationDecision | null>(null);
+  const [selectedException, setSelectedException] = useState<CloseException | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [importSession, setImportSession] = useState<ImportedCloseSession | null>(null);
@@ -1071,6 +1177,9 @@ export default function Home() {
   const replay = async () => {
     if (phase === 'running') return;
     setView('overview');
+    setReviewed(new Set());
+    setSelected(null);
+    setSelectedException(null);
     setPhase('running');
     for (let index = 0; index < pipelineSteps(run.metrics.sourceRows).length; index += 1) {
       setStage(index);
@@ -1089,6 +1198,7 @@ export default function Home() {
           generatedAt: new Date().toISOString(),
           cutoffDate: importSession.manifest.cutoffDate,
           openingCashPaise: importSession.manifest.openingCashPaise,
+          sourceManifestSha256: importSession.manifest.manifestSha256,
         },
       );
       setRun(nextRun);
@@ -1104,16 +1214,16 @@ export default function Home() {
     setImportSession(null);
     setReviewed(new Set());
     setSelected(null);
+    setSelectedException(null);
     setView('overview');
     setStage(3);
   };
 
-  const proofPacket = (includeRawInputs: boolean) => ({
+  const fullProofPacket = () => ({
+    schema: 'settleproof-full-proof/v2',
     mode: isImported ? 'browser-local-import' : 'synthetic-benchmark',
     manifest: importSession?.manifest ?? manifestArtifact,
-    inputs: includeRawInputs
-      ? { ledger: run.batch.ledger, gateway: run.batch.gateway, bank: run.batch.bank }
-      : undefined,
+    inputs: { ledger: run.batch.ledger, gateway: run.batch.gateway, bank: run.batch.bank },
     metrics: run.metrics,
     evaluationDisclosure: isImported
       ? 'No independent truth labels were supplied. Precision, recall, and false-close counts are intentionally unscored for this imported batch.'
@@ -1125,12 +1235,21 @@ export default function Home() {
     dispositions: run.dispositions,
     exceptions: run.exceptions,
     refundChecks: run.refundChecks,
+    chargebackChecks: run.chargebackChecks,
+    independentDebitJournals: run.debitJournals,
   });
 
   const exportPacket = () => {
     downloadText(
-      `settleproof-${run.batch.id.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-proof-packet.json`,
-      JSON.stringify(proofPacket(false), null, 2),
+      'settleproof-redacted-proof.json',
+      JSON.stringify(
+        buildRedactedProof(
+          run,
+          isImported ? 'browser-local-import' : 'synthetic-benchmark',
+        ),
+        null,
+        2,
+      ),
       'application/json',
     );
   };
@@ -1149,11 +1268,11 @@ export default function Home() {
     setExportingEncryptedPacket(true);
     try {
       const encrypted = await encryptJsonWithPassphrase(
-        proofPacket(true),
+        fullProofPacket(),
         exportPassphrase,
       );
       downloadText(
-        `settleproof-${run.batch.id}-full-export.enc.json`,
+        'settleproof-encrypted-full-export.json',
         encrypted,
         'application/json',
       );
@@ -1177,7 +1296,6 @@ export default function Home() {
     }
   };
 
-  const selectedIsReviewed = selected ? reviewed.has(selected.targetId) : false;
   return (
     <main className="min-h-screen bg-[#f1f3ee] text-[#14231c]">
       <div className="grid min-h-screen lg:grid-cols-[238px_minmax(0,1fr)]">
@@ -1314,7 +1432,7 @@ export default function Home() {
                   <span className="block text-xs text-white/60">Measured accuracy</span><span className="mt-1 block font-semibold">78/78 correct · 0 unsafe</span><span className="mt-1 block text-[10px] text-white/50">Synthetic, scored, reproducible →</span>
                 </button>
                 <button className="rounded-lg border border-white/10 bg-white/[0.05] p-3 text-left hover:bg-white/[0.09]" onClick={() => setView('exceptions')} type="button">
-                  <span className="block text-xs text-white/60">Honest exceptions</span><span className="mt-1 block font-semibold">{run.exceptions.length} cases · refund-safe</span><span className="mt-1 block text-[10px] text-white/50">Open every refusal →</span>
+                  <span className="block text-xs text-white/60">Honest exceptions</span><span className="mt-1 block font-semibold">{run.exceptions.length} cases · independent-debit safe</span><span className="mt-1 block text-[10px] text-white/50">Open every refusal →</span>
                 </button>
               </div>
             </section>
@@ -1327,7 +1445,7 @@ export default function Home() {
               </TabsList>
               <TabsContent value="overview"><CloseOverview cutoffDate={cutoffDate} phase={phase} run={run} stage={stage} /></TabsContent>
               <TabsContent value="evidence"><EvidenceView onSelect={setSelected} run={run} /></TabsContent>
-              <TabsContent value="exceptions"><ExceptionsView onSelect={setSelected} reviewed={reviewed} run={run} /></TabsContent>
+              <TabsContent value="exceptions"><ExceptionsView onSelect={setSelectedException} redactIdentifiers={isImported} reviewed={reviewed} run={run} /></TabsContent>
               <TabsContent value="benchmark"><BenchmarkView /></TabsContent>
             </Tabs>
           </div>
@@ -1336,10 +1454,17 @@ export default function Home() {
 
       <DecisionDialog
         decision={selected}
-        isReviewed={selectedIsReviewed}
+        isReviewed={false}
         onClose={() => setSelected(null)}
-        onReview={(targetId) => {
-          setReviewed((current) => new Set(current).add(targetId));
+        onReview={() => undefined}
+        run={run}
+      />
+      <ExceptionDialog
+        exception={selectedException}
+        isReviewed={selectedException ? reviewed.has(selectedException.id) : false}
+        onClose={() => setSelectedException(null)}
+        onReview={(exceptionId) => {
+          setReviewed((current) => new Set(current).add(exceptionId));
         }}
         run={run}
       />
@@ -1351,7 +1476,7 @@ export default function Home() {
             </div>
             <DialogTitle>Encrypt the full reconciliation packet</DialogTitle>
             <DialogDescription className="leading-6">
-              This export includes raw input rows. It is encrypted in this browser with AES-256-GCM and a key derived through 310,000 PBKDF2-SHA-256 iterations. The passphrase is never stored or sent.
+              This export includes raw input rows. It is encrypted in this browser with AES-256-GCM, authenticated metadata, and an internal SHA-256 payload check; the key is derived through 310,000 PBKDF2-SHA-256 iterations. The passphrase is never stored or sent.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -1394,7 +1519,7 @@ export default function Home() {
               </p>
             )}
             <div className="rounded-lg border border-[#dce5dd] bg-[#f7faf7] px-3 py-2 text-xs leading-5 text-[#56655c]">
-              Browser-local encryption · random 128-bit salt · random 96-bit IV · authenticated ciphertext
+              Browser-local encryption · random 128-bit salt · random 96-bit IV · 128-bit tag · metadata bound as AAD
             </div>
             <DialogFooter>
               <Button disabled={exportingEncryptedPacket} onClick={() => setEncryptedExportDialogOpen(false)} type="button" variant="outline">
@@ -1415,6 +1540,7 @@ export default function Home() {
           setRun(session.run);
           setReviewed(new Set());
           setSelected(null);
+          setSelectedException(null);
           setView('overview');
           setStage(3);
         }}

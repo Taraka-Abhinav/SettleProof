@@ -1,0 +1,169 @@
+{
+  "refundChecks": [
+    {
+      "kind": "refund",
+      "gatewayRowId": "gw_adj_01",
+      "transactionId": "gw_adj_01",
+      "orderId": null,
+      "settlementUtr": "UTR2608SP0010",
+      "amountPaise": 37500,
+      "status": "matched",
+      "bankRowId": "bank_refund_01",
+      "bankRowIds": [
+        "bank_refund_01"
+      ],
+      "type": null,
+      "explanation": "Refund gw_adj_01 independently matched bank debit bank_refund_01 by unique UTR, debit direction, exact paise amount, and the 5-day evidence window."
+    },
+    {
+      "kind": "refund",
+      "gatewayRowId": "gw_adj_03",
+      "transactionId": "gw_adj_03",
+      "orderId": null,
+      "settlementUtr": "UTR2608SP0010",
+      "amountPaise": 41250,
+      "status": "matched",
+      "bankRowId": "bank_refund_02",
+      "bankRowIds": [
+        "bank_refund_02"
+      ],
+      "type": null,
+      "explanation": "Refund gw_adj_03 independently matched bank debit bank_refund_02 by unique UTR, debit direction, exact paise amount, and the 5-day evidence window."
+    },
+    {
+      "kind": "refund",
+      "gatewayRowId": "gw_adj_05",
+      "transactionId": "gw_adj_05",
+      "orderId": null,
+      "settlementUtr": "UTR2608SP0010",
+      "amountPaise": 63000,
+      "status": "matched",
+      "bankRowId": "bank_refund_03",
+      "bankRowIds": [
+        "bank_refund_03"
+      ],
+      "type": null,
+      "explanation": "Refund gw_adj_05 independently matched bank debit bank_refund_03 by unique UTR, debit direction, exact paise amount, and the 5-day evidence window."
+    },
+    {
+      "kind": "refund",
+      "gatewayRowId": "REF-1059",
+      "transactionId": "REF-1059",
+      "orderId": "ORDER-1059",
+      "settlementUtr": "UTR2608SP0007",
+      "amountPaise": 485000,
+      "status": "exception",
+      "bankRowId": null,
+      "bankRowIds": [],
+      "type": "refund_missing_bank_debit",
+      "explanation": "Gateway refund REF-1059 for ORDER-1059 has no unique corresponding bank debit through 2026-08-31. The original payment result does not override this exception."
+    }
+  ],
+  "chargebackChecks": [
+    {
+      "kind": "chargeback",
+      "gatewayRowId": "CHB-1042",
+      "transactionId": "CHB-1042",
+      "orderId": "ORDER-1042",
+      "settlementUtr": "UTR-CHB-1042",
+      "amountPaise": 700125,
+      "status": "matched",
+      "bankRowId": "bank_chargeback_01",
+      "bankRowIds": [
+        "bank_chargeback_01"
+      ],
+      "type": null,
+      "explanation": "Chargeback CHB-1042 independently matched bank debit bank_chargeback_01 by unique UTR, debit direction, exact paise amount, and the 5-day evidence window."
+    }
+  ],
+  "journals": [
+    {
+      "id": "JRN-REFUND-gw_adj_01",
+      "transactionId": "gw_adj_01",
+      "kind": "refund",
+      "status": "posting-ready",
+      "lines": [
+        {
+          "account": "Customer refunds clearing",
+          "debitPaise": 37500,
+          "creditPaise": 0
+        },
+        {
+          "account": "Bank — independent debit clearing",
+          "debitPaise": 0,
+          "creditPaise": 37500
+        }
+      ],
+      "debitPaise": 37500,
+      "creditPaise": 37500,
+      "balanced": true,
+      "bankRowId": "bank_refund_01"
+    },
+    {
+      "id": "JRN-REFUND-gw_adj_03",
+      "transactionId": "gw_adj_03",
+      "kind": "refund",
+      "status": "posting-ready",
+      "lines": [
+        {
+          "account": "Customer refunds clearing",
+          "debitPaise": 41250,
+          "creditPaise": 0
+        },
+        {
+          "account": "Bank — independent debit clearing",
+          "debitPaise": 0,
+          "creditPaise": 41250
+        }
+      ],
+      "debitPaise": 41250,
+      "creditPaise": 41250,
+      "balanced": true,
+      "bankRowId": "bank_refund_02"
+    },
+    {
+      "id": "JRN-REFUND-gw_adj_05",
+      "transactionId": "gw_adj_05",
+      "kind": "refund",
+      "status": "posting-ready",
+      "lines": [
+        {
+          "account": "Customer refunds clearing",
+          "debitPaise": 63000,
+          "creditPaise": 0
+        },
+        {
+          "account": "Bank — independent debit clearing",
+          "debitPaise": 0,
+          "creditPaise": 63000
+        }
+      ],
+      "debitPaise": 63000,
+      "creditPaise": 63000,
+      "balanced": true,
+      "bankRowId": "bank_refund_03"
+    },
+    {
+      "id": "JRN-CHARGEBACK-CHB-1042",
+      "transactionId": "CHB-1042",
+      "kind": "chargeback",
+      "status": "posting-ready",
+      "lines": [
+        {
+          "account": "Chargeback receivable / dispute expense",
+          "debitPaise": 700125,
+          "creditPaise": 0
+        },
+        {
+          "account": "Bank — independent debit clearing",
+          "debitPaise": 0,
+          "creditPaise": 700125
+        }
+      ],
+      "debitPaise": 700125,
+      "creditPaise": 700125,
+      "balanced": true,
+      "bankRowId": "bank_chargeback_01"
+    }
+  ]
+}
