@@ -261,3 +261,4 @@ The test suite verifies:
 ---
 
 Built for the verification bottleneck: fast enough to process the batch, strict enough to protect the books, and honest enough to say “I don’t know.”
+# SettleProof
